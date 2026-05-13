@@ -1,0 +1,14 @@
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+data/
+*.db
+*.pkl
+.env
+.env.local
+browser_profiles/
+node_modules/
+.vite/
+.DS_Store
