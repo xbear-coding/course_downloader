@@ -196,39 +196,79 @@ class TencentMeetingPlugin(BasePlatform, VideoCapable):
         page = await pb.new_page()
 
         try:
-            try:
-                await page.goto(item.url, wait_until="domcontentloaded", timeout=15000)
-            except Exception:
-                logger.warning("[tencent_meeting] 详情页加载超时，尝试继续解析")
+            await page.goto(RECORDING_LIST_URL, wait_until="domcontentloaded", timeout=15000)
+            await asyncio.sleep(5)
+
+            target_row = await page.evaluate(f"""(title) => {{
+                const rows = document.querySelectorAll('tr');
+                for (const row of rows) {{
+                    if (row.textContent.includes(title)) {{
+                        const moreIcon = row.querySelector('[class*=more--outlined]');
+                        if (moreIcon) {{
+                            moreIcon.click();
+                            return 'clicked';
+                        }}
+                    }}
+                }}
+                return 'not found';
+            }}""", item.title)
+
+            if target_row == 'not found':
+                more_icon = await page.query_selector('[class*=more--outlined]')
+                if not more_icon:
+                    return DownloadResult(
+                        success=False, error_code="NO_MORE_BUTTON",
+                        error_message="未找到更多按钮",
+                    )
+                await more_icon.click()
+
+            await asyncio.sleep(1)
+
+            dl_clicked = await page.evaluate("""() => {
+                const items = document.querySelectorAll('li, button, a, span, div');
+                for (const el of items) {
+                    const t = el.textContent.trim();
+                    if (t === '下载' || t === '下载视频') {
+                        el.click();
+                        return true;
+                    }
+                }
+                return false;
+            }""")
+
+            if not dl_clicked:
+                return DownloadResult(
+                    success=False, error_code="NO_DOWNLOAD_OPTION",
+                    error_message="未找到下载选项",
+                )
+
             await asyncio.sleep(3)
 
-            # 寻找导出/下载按钮
-            export_selectors = [
-                "button:has-text('导出')",
-                "button:has-text('下载')",
-                "[class*='export']",
-                "[class*='download']",
-                "button:has-text('视频')",
-            ]
+            modal_dl = await page.evaluate("""() => {
+                const btns = document.querySelectorAll('button, span[class*=btn], div[role=button]');
+                for (const btn of btns) {
+                    const t = btn.textContent.trim();
+                    if (t === '下载' || t === '确认下载' || t === '确定') {
+                        btn.click();
+                        return 'clicked: ' + t;
+                    }
+                }
+                return 'no confirm modal';
+            }""")
+            logger.info(f"[tencent_meeting] 下载确认对话框: {modal_dl}")
+            await asyncio.sleep(2)
 
-            clicked = False
-            for sel in export_selectors:
-                try:
-                    btn = await page.query_selector(sel)
-                    if btn:
-                        await btn.click()
-                        await asyncio.sleep(2)
-                        clicked = True
-                        logger.info(f"[tencent_meeting] 点击了 {sel}")
-                        break
-                except Exception:
-                    continue
-
-            if not clicked:
-                logger.warning("[tencent_meeting] 未找到导出按钮，尝试检查页面视频元素")
-
-            # 等待下载完成或检测视频源
-            await asyncio.sleep(5)
+            try:
+                async with page.expect_download(timeout=30000) as download_info:
+                    pass
+                download = await download_info.value
+                await download.save_as(str(output))
+                return DownloadResult(
+                    success=True, file_path=output,
+                    file_type=output.suffix.lstrip(".") or "mp4",
+                )
+            except Exception:
+                pass
 
             # 尝试拦截 video 标签的 src
             video_src = None
