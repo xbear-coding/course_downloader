@@ -24,9 +24,9 @@ class ConnectionManager:
             self._connections.remove(ws)
 
     async def broadcast(self, message: dict):
-        """向所有客户端广播消息"""
+        """向所有客户端广播消息（使用列表副本避免迭代时修改）"""
         dead = []
-        for ws in self._connections:
+        for ws in self._connections.copy():
             try:
                 await ws.send_json(message)
             except Exception:

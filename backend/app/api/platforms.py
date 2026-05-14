@@ -48,17 +48,19 @@ async def delete_platform(platform_id: int, db: AsyncSession = Depends(get_db)):
     await db.commit()
 
 
+ALLOWED_PLATFORM_UPDATES = {"enabled", "output_dir", "display_name", "sort_order"}
+
 @router.patch("/{platform_id}", response_model=PlatformResponse)
 async def update_platform(
     platform_id: int, data: dict, db: AsyncSession = Depends(get_db)
 ):
-    """更新平台设置（启用状态、输出目录等）"""
+    """更新平台设置（仅允许白名单字段）"""
     result = await db.execute(select(Platform).where(Platform.id == platform_id))
     platform = result.scalar_one_or_none()
     if not platform:
         raise HTTPException(404, "平台不存在")
     for key, value in data.items():
-        if hasattr(platform, key):
+        if key in ALLOWED_PLATFORM_UPDATES:
             setattr(platform, key, value)
     await db.commit()
     await db.refresh(platform)

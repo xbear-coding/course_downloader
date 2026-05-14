@@ -37,7 +37,12 @@ async def ts_to_mp4(
     proc = await asyncio.create_subprocess_exec(
         *cmd, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE
     )
-    _, stderr = await proc.communicate()
+    try:
+        _, stderr = await asyncio.wait_for(proc.communicate(), timeout=600)
+    except asyncio.TimeoutError:
+        proc.kill()
+        logger.error(f"ffmpeg 转码超时 (>600s)")
+        return False
 
     if proc.returncode != 0:
         logger.error(f"ffmpeg 转码失败: {stderr.decode()[:200]}")

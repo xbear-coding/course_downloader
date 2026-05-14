@@ -77,6 +77,7 @@ app.add_middleware(
 # 全局异常处理
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception):
+    logger.exception(f"未捕获异常: {exc}")
     return JSONResponse(
         status_code=500,
         content={"error": {"code": "INTERNAL_ERROR", "message": "服务器内部错误"}},

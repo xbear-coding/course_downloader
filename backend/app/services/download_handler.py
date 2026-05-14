@@ -150,7 +150,7 @@ async def _handle_video_download(
     async with async_session() as db:
         db_task = await db.get(Task, task.id)
         db_task.video_path = str(result.file_path or raw_output)
-        db_task.video_status = StepStatus.DONE.value
+        db_task.video_status = StepStatus.DONE
         await db.commit()
 
 
@@ -172,7 +172,7 @@ async def _handle_article_download(
     async with async_session() as db:
         db_task = await db.get(Task, task.id)
         db_task.article_path = str(article_output)
-        db_task.article_status = StepStatus.DONE.value
+        db_task.article_status = StepStatus.DONE
         await db.commit()
 
 
@@ -182,7 +182,7 @@ async def _handle_transcript(
     # 检查是否跳过转录
     async with async_session() as db:
         db_task = await db.get(Task, task.id)
-        if db_task.transcript_status == StepStatus.SKIPPED.value:
+        if db_task.transcript_status == StepStatus.SKIPPED:
             return
 
     # 统一读取所需路径
@@ -239,7 +239,7 @@ async def _handle_transcript(
         async with async_session() as db:
             db_task = await db.get(Task, task.id)
             db_task.transcript_path = str(transcript_path)
-            db_task.transcript_status = StepStatus.DONE.value
+            db_task.transcript_status = StepStatus.DONE
             await db.commit()
 
 
