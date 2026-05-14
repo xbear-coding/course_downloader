@@ -6,7 +6,7 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from dotenv import load_dotenv
-from app.api import platforms, tasks, keys
+from app.api import platforms, tasks, keys, ws
 
 load_dotenv()
 
@@ -43,3 +43,4 @@ async def health():
 app.include_router(platforms.router)
 app.include_router(tasks.router)
 app.include_router(keys.router)
+app.include_router(ws.router)
