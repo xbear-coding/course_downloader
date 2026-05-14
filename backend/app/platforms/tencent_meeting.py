@@ -220,18 +220,35 @@ class TencentMeetingPlugin(BasePlatform, VideoCapable):
 
             await asyncio.sleep(2)
 
-            # 方法 1: 捕获浏览器下载事件
+            # 监听下载事件（page.on 比 expect_download 更可靠）
+            download_event = None
+
+            def on_download(dl):
+                nonlocal download_event
+                download_event = dl
+
+            page.on("download", on_download)
+
             try:
-                async with page.expect_download(timeout=15000) as download_info:
-                    pass
-                download = await download_info.value
-                await download.save_as(str(output))
-                return DownloadResult(
-                    success=True, file_path=output,
-                    file_type=output.suffix.lstrip(".") or "mp4",
-                )
+                for _ in range(30):
+                    await asyncio.sleep(1)
+                    if download_event:
+                        break
+
+                if not download_event:
+                    page.remove_listener("download", on_download)
+                    logger.info("[tencent_meeting] 菜单下载未触发，尝试备用方案")
+                else:
+                    fname = download_event.suggested_filename
+                    logger.info(f"[tencent_meeting] 下载捕获: {fname}")
+                    await download_event.save_as(str(output))
+                    page.remove_listener("download", on_download)
+                    return DownloadResult(
+                        success=True, file_path=output,
+                        file_type=output.suffix.lstrip(".") or "mp4",
+                    )
             except Exception:
-                logger.info("[tencent_meeting] 菜单下载未触发，尝试备用方案")
+                page.remove_listener("download", on_download)
 
             # 方法 2: 检查是否弹出了分享对话框（下载被权限限制）
             share_modal = await page.query_selector('[class*=ShareModal]')
