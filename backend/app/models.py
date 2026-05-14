@@ -73,7 +73,7 @@ class Task(Base):
     id = Column(Integer, primary_key=True)
     account_id = Column(Integer, ForeignKey("accounts.id", ondelete="SET NULL"))
     platform = Column(String(50), nullable=False)
-    resource_id = Column(String(200))
+    resource_id = Column(String(200), nullable=False)
     title = Column(String(500))
     content_type = Column(String(20), default="video")
     url = Column(String(500))

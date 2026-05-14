@@ -76,9 +76,27 @@ class XiaoEPlugin(BasePlatform, VideoCapable):
         self._appid = await _get_account_appid(account_id)
         return self._appid
 
+    async def _check_logged_in(self, page) -> bool:
+        """多维度检测是否已登录小鹅通"""
+        url = page.url
+        if "login" not in url.lower() and "www.xiaoe-tech.com" not in url:
+            return True
+        try:
+            body = await page.inner_text("body")
+            if "退出" in body or "我的课程" in body or "我的学习" in body:
+                return True
+            user_els = await page.query_selector_all(
+                '[class*=avatar], [class*=user], [class*=User], '
+                '[class*=userInfo], [class*=nickname]'
+            )
+            if user_els:
+                return True
+        except Exception:
+            pass
+        return False
+
     async def login(self, account_id: int) -> LoginResult:
         try:
-            # 先检查是否已有 appid
             existing_appid = await self._resolve_appid(account_id)
             start_url = (
                 _build_url(existing_appid, "/login")
@@ -89,39 +107,23 @@ class XiaoEPlugin(BasePlatform, VideoCapable):
             pb = await self.browser_mgr.get_browser(self.platform, headless=False)
             page = await pb.new_page()
             await page.goto(start_url, wait_until="domcontentloaded")
-            await asyncio.sleep(2)
+            await asyncio.sleep(3)
 
-            # 检测是否已登录
-            current = page.url
-            if "login" not in current.lower():
-                detected = _extract_appid(current)
+            if await self._check_logged_in(page):
+                detected = _extract_appid(page.url)
                 if detected and detected != existing_appid:
                     await _save_account_appid(account_id, detected)
                     self._appid = detected
                 return LoginResult(success=True)
 
-            # 等待手机验证码登录（最长 180 秒）
             for _ in range(180):
                 await asyncio.sleep(1)
-                current = page.url
-                if "login" not in current.lower():
-                    # 登录成功，检测 appid
-                    detected = _extract_appid(current)
+                if await self._check_logged_in(page):
+                    detected = _extract_appid(page.url)
                     if detected:
                         await _save_account_appid(account_id, detected)
                         self._appid = detected
                     return LoginResult(success=True)
-                try:
-                    if await page.query_selector(
-                        ".user-info, [class*='avatar'], [class*='user']"
-                    ):
-                        detected = _extract_appid(current)
-                        if detected:
-                            await _save_account_appid(account_id, detected)
-                            self._appid = detected
-                        return LoginResult(success=True)
-                except Exception:
-                    pass
 
             return LoginResult(
                 success=False, error_code="TIMEOUT",
