@@ -25,9 +25,9 @@ def _extract_appid(url: str) -> str | None:
     return m.group(0) if m else None
 
 
-def _build_url(appid: str, path: str = "") -> str:
-    """构建 appid 对应的 URL"""
-    return f"https://{appid}.xiaoe-tech.com{path}"
+def _build_url(base_url: str, path: str = "") -> str:
+    """构建 appid 对应的 URL（base_url 为完整基础 URL）"""
+    return f"{base_url}{path}"
 
 
 async def _get_account_appid(account_id: int) -> str | None:
@@ -41,15 +41,15 @@ async def _get_account_appid(account_id: int) -> str | None:
     return None
 
 
-async def _save_account_appid(account_id: int, appid: str):
-    """将 appid 保存到账号记录"""
+async def _save_account_base_url(account_id: int, base_url: str):
+    """将完整基础 URL 保存到账号记录"""
     from app.models import Account
     async with async_session() as db:
         acct = await db.get(Account, account_id)
         if acct:
-            acct.cookie_file = f"xiaoe:{appid}"
+            acct.cookie_file = f"xiaoe:{base_url}"
             await db.commit()
-            logger.info(f"[xiaoe] appid {appid} 已保存到账号 {account_id}")
+            logger.info(f"[xiaoe] 基础URL已保存: {base_url}")
 
 
 class XiaoEPlugin(BasePlatform, VideoCapable):
@@ -97,10 +97,10 @@ class XiaoEPlugin(BasePlatform, VideoCapable):
 
     async def login(self, account_id: int) -> LoginResult:
         try:
-            existing_appid = await self._resolve_appid(account_id)
+            existing_base = await self._resolve_appid(account_id)
             start_url = (
-                _build_url(existing_appid, "/login")
-                if existing_appid
+                _build_url(existing_base, "/login")
+                if existing_base
                 else f"{XIAOE_HOME}/login"
             )
 
@@ -110,19 +110,20 @@ class XiaoEPlugin(BasePlatform, VideoCapable):
             await asyncio.sleep(3)
 
             if await self._check_logged_in(page):
-                detected = _extract_appid(page.url)
-                if detected and detected != existing_appid:
-                    await _save_account_appid(account_id, detected)
-                    self._appid = detected
+                # 从当前 URL 提取基础地址并保存
+                base = await page.evaluate("window.location.origin")
+                if base and base != existing_base:
+                    await _save_account_base_url(account_id, base)
+                    self._appid = base
                 return LoginResult(success=True)
 
             for _ in range(180):
                 await asyncio.sleep(1)
                 if await self._check_logged_in(page):
-                    detected = _extract_appid(page.url)
-                    if detected:
-                        await _save_account_appid(account_id, detected)
-                        self._appid = detected
+                    base = await page.evaluate("window.location.origin")
+                    if base:
+                        await _save_account_base_url(account_id, base)
+                        self._appid = base
                     return LoginResult(success=True)
 
             return LoginResult(
