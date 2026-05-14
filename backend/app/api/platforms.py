@@ -2,10 +2,10 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from app.database import get_db
 from app.models import Platform, Account
 from app.schemas import PlatformCreate, PlatformResponse, AccountCreate, AccountResponse
-from typing import Optional
 
 router = APIRouter(prefix="/api/platforms", tags=["platforms"])
 
@@ -20,7 +20,11 @@ async def list_platforms(db: AsyncSession = Depends(get_db)):
 async def create_platform(data: PlatformCreate, db: AsyncSession = Depends(get_db)):
     platform = Platform(**data.model_dump())
     db.add(platform)
-    await db.commit()
+    try:
+        await db.commit()
+    except IntegrityError:
+        await db.rollback()
+        raise HTTPException(409, "平台名称已存在")
     await db.refresh(platform)
     return platform
 

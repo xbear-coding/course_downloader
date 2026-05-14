@@ -1,7 +1,7 @@
 """
 Course_Downloader — Pydantic 请求/响应模型
 """
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 from typing import Optional
 from datetime import datetime
 
@@ -15,6 +15,7 @@ class PlatformCreate(BaseModel):
 
 
 class PlatformResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
     id: int
     name: str
     display_name: str
@@ -22,9 +23,6 @@ class PlatformResponse(BaseModel):
     output_dir: Optional[str]
     sort_order: int
     created_at: datetime
-
-    class Config:
-        from_attributes = True
 
 
 # ── 账号 ──
@@ -35,14 +33,12 @@ class AccountCreate(BaseModel):
 
 
 class AccountResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
     id: int
     platform_id: int
     name: str
     is_active: bool
     last_login: Optional[datetime]
-
-    class Config:
-        from_attributes = True
 
 
 # ── 任务 ──
@@ -56,6 +52,7 @@ class TaskCreate(BaseModel):
 
 
 class TaskResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
     id: int
     platform: str
     resource_id: Optional[str]
@@ -69,9 +66,6 @@ class TaskResponse(BaseModel):
     created_at: datetime
     downloaded_at: Optional[datetime]
 
-    class Config:
-        from_attributes = True
-
 
 # ── API Key ──
 
@@ -82,14 +76,12 @@ class APIKeyCreate(BaseModel):
 
 
 class APIKeyResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
     id: int
     name: str
     key_value: str  # 前端应只显示后 4 位
     provider: str
     is_active: bool
-
-    class Config:
-        from_attributes = True
 
 
 # ── 通用 ──

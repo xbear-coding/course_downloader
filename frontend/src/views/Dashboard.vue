@@ -1,16 +1,13 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from 'vue'
 import { usePlatformStore } from '../stores/platform'
-import { useTaskStore } from '../stores/task'
+import client from '../api/client'
 import { connectWebSocket } from '../api/ws'
 
 const platformStore = usePlatformStore()
-const taskStore = useTaskStore()
 
-const taskProgress = ref<Record<number, { total_progress: number; message: string }>>({})
-const totalTasks = ref(0)
-const doneTasks = ref(0)
-const failedTasks = ref(0)
+const stats = ref({ total: 0, done: 0, failed: 0, partial: 0 })
+const taskProgress = ref<Record<number, { total_progress: number; message: string; step: string }>>({})
 
 let wsCleanup: (() => void) | null = null
 
@@ -22,11 +19,9 @@ onMounted(() => {
       taskProgress.value[data.task_id] = {
         total_progress: data.total_progress,
         message: data.message,
+        step: data.step,
       }
-    } else if (data.type === 'task_done') {
-      delete taskProgress.value[data.task_id]
-      loadStats()
-    } else if (data.type === 'task_error') {
+    } else if (data.type === 'task_done' || data.type === 'task_error') {
       delete taskProgress.value[data.task_id]
       loadStats()
     }
@@ -39,151 +34,190 @@ onUnmounted(() => {
 
 async function loadStats() {
   try {
-    const { data } = await (await import('../api/client')).default.get('/api/tasks', { params: { page_size: 1 } })
-    totalTasks.value = data.pagination.total_items
-    // Also load done/failed counts via filters
-    const done = await (await import('../api/client')).default.get('/api/tasks', { params: { status: 'done', page_size: 1 } })
-    doneTasks.value = done.data.pagination.total_items
-    const failed = await (await import('../api/client')).default.get('/api/tasks', { params: { status: 'failed', page_size: 1 } })
-    failedTasks.value = failed.data.pagination.total_items
+    const [all, done, failed, partial] = await Promise.all([
+      client.get('/api/tasks', { params: { page_size: 1 } }),
+      client.get('/api/tasks', { params: { status: 'done', page_size: 1 } }),
+      client.get('/api/tasks', { params: { status: 'failed', page_size: 1 } }),
+      client.get('/api/tasks', { params: { status: 'partial', page_size: 1 } }),
+    ])
+    stats.value = {
+      total: all.data.pagination.total_items,
+      done: done.data.pagination.total_items,
+      failed: failed.data.pagination.total_items,
+      partial: partial.data.pagination.total_items,
+    }
   } catch {}
 }
 
-const platformIcons: Record<string, string> = {
-  tencent_meeting: '🎬',
-  xiaoe: '📚',
-  bilibili: '📺',
-  xiaohongshu: '📕',
-  toutiao: '📰',
-  douyin: '🎵',
+const platformMeta: Record<string, { icon: string; desc: string }> = {
+  tencent_meeting: { icon: '🎬', desc: '会议录制' },
+  xiaoe: { icon: '📚', desc: '课程' },
+  bilibili: { icon: '📺', desc: '视频' },
+  xiaohongshu: { icon: '📕', desc: '图文' },
+  toutiao: { icon: '📰', desc: '资讯' },
+  douyin: { icon: '🎵', desc: '短视频' },
 }
 
-const platformColors: Record<string, string> = {
-  tencent_meeting: '#6366f1',
-  xiaoe: '#f59e0b',
-  bilibili: '#fb7299',
-  xiaohongshu: '#ff2442',
-  toutiao: '#1e80ff',
-  douyin: '#00f2ea',
-}
-
-function getPlatformIcon(name: string) {
-  return platformIcons[name] || '📦'
-}
-
-function getPlatformColor(name: string) {
-  return platformColors[name] || '#58a6ff'
-}
+const runningTasks = () => Object.keys(taskProgress.value).length
 </script>
 
 <template>
   <div class="dashboard">
-    <div class="header">
+    <div class="page-header">
       <h2>仪表盘</h2>
       <p class="subtitle">多平台内容下载中心</p>
     </div>
 
-    <!-- 统计概览 -->
-    <div class="stats-grid">
+    <!-- 统计行 -->
+    <div class="stats-row">
       <div class="stat-card">
-        <div class="stat-value">{{ totalTasks }}</div>
+        <div class="stat-value">{{ stats.total }}</div>
         <div class="stat-label">总任务</div>
+        <div v-if="runningTasks() > 0" class="stat-badge pulse">● {{ runningTasks() }} 运行中</div>
       </div>
-      <div class="stat-card">
-        <div class="stat-value" style="color:#3fb950">{{ doneTasks }}</div>
+      <div class="stat-card stat-done">
+        <div class="stat-value">{{ stats.done }}</div>
         <div class="stat-label">已完成</div>
       </div>
-      <div class="stat-card">
-        <div class="stat-value" style="color:#f85149">{{ failedTasks }}</div>
+      <div class="stat-card stat-failed">
+        <div class="stat-value">{{ stats.failed }}</div>
         <div class="stat-label">失败</div>
       </div>
-      <div class="stat-card">
-        <div class="stat-value">{{ platformStore.platforms.filter(p => p.enabled).length }}</div>
-        <div class="stat-label">活跃平台</div>
+      <div class="stat-card stat-partial">
+        <div class="stat-value">{{ stats.partial }}</div>
+        <div class="stat-label">部分完成</div>
       </div>
     </div>
 
-    <!-- 平台卡片 -->
-    <h3 class="section-title">平台</h3>
-    <div class="platform-grid">
-      <div
-        v-for="p in platformStore.platforms"
-        :key="p.id"
-        class="platform-card"
-        :style="{ borderLeftColor: getPlatformColor(p.name) }"
-        @click="$router.push('/settings')"
-      >
-        <div class="platform-icon">{{ getPlatformIcon(p.name) }}</div>
-        <div class="platform-info">
+    <!-- 进行中的任务 -->
+    <div v-if="runningTasks() > 0" class="section">
+      <h3 class="section-title">进行中</h3>
+      <div class="running-list">
+        <div v-for="(prog, id) in taskProgress" :key="id" class="running-item card">
+          <div class="running-header">
+            <span class="running-id">#{{ id }}</span>
+            <span class="running-step">{{ prog.step }}</span>
+          </div>
+          <div class="running-bar">
+            <div class="progress-bar">
+              <div class="fill" :style="{ width: prog.total_progress + '%' }"></div>
+            </div>
+            <span class="running-pct">{{ prog.total_progress }}%</span>
+          </div>
+          <div class="running-msg">{{ prog.message }}</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 平台网格 -->
+    <div class="section">
+      <h3 class="section-title">平台</h3>
+      <div class="platform-grid">
+        <div
+          v-for="p in platformStore.platforms"
+          :key="p.id"
+          class="platform-card card"
+          @click="$router.push('/settings')"
+        >
+          <div class="platform-header">
+            <span class="platform-icon">{{ platformMeta[p.name]?.icon || '📦' }}</span>
+            <span class="platform-indicator" :class="{ on: p.enabled }"></span>
+          </div>
           <div class="platform-name">{{ p.display_name }}</div>
-          <div class="platform-dir" v-if="p.output_dir">{{ p.output_dir }}</div>
-          <div class="platform-dir" v-else>未设置输出目录</div>
+          <div class="platform-type">{{ platformMeta[p.name]?.desc || '' }}</div>
+          <div class="platform-dir">{{ p.output_dir || '未设置输出目录' }}</div>
         </div>
-        <div class="platform-status" :class="{ active: p.enabled }">
-          {{ p.enabled ? '已启用' : '已禁用' }}
-        </div>
-      </div>
-    </div>
-
-    <!-- 运行中的任务 -->
-    <div v-if="Object.keys(taskProgress).length > 0" class="running-section">
-      <h3 class="section-title">运行中的任务</h3>
-      <div v-for="(prog, id) in taskProgress" :key="id" class="running-item card">
-        <div class="flex items-center justify-between mb-16">
-          <span class="text-sm">任务 #{{ id }}</span>
-          <span class="text-sm">{{ prog.total_progress }}%</span>
-        </div>
-        <div class="progress-bar">
-          <div class="fill" :style="{ width: prog.total_progress + '%' }"></div>
-        </div>
-        <div class="text-sm mt-16">{{ prog.message }}</div>
       </div>
     </div>
 
     <!-- 空状态 -->
     <div v-if="!platformStore.loading && platformStore.platforms.length === 0" class="empty-state">
-      <div class="icon">📦</div>
+      <div class="icon">⧉</div>
       <p>暂无平台数据</p>
-      <p class="text-sm mt-16">请先在设置中添加平台</p>
+      <p class="text-sm mt-16">请在设置中添加平台</p>
     </div>
   </div>
 </template>
 
 <style scoped>
-.dashboard { padding: 24px; }
-.header { margin-bottom: 24px; }
-.header h2 { font-size: 24px; font-weight: 600; margin: 0; }
-.subtitle { color: #8b949e; margin-top: 4px; font-size: 14px; }
-.section-title { font-size: 16px; font-weight: 600; margin: 24px 0 12px; }
+.dashboard { padding: 28px 32px; }
 
-/* 统计卡片 */
-.stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 8px; }
-@media (max-width: 600px) { .stats-grid { grid-template-columns: repeat(2, 1fr); } }
+/* 统计行 */
+.stats-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 28px; }
+@media (max-width: 640px) { .stats-row { grid-template-columns: repeat(2, 1fr); } }
+
 .stat-card {
-  background: #161b22; border: 1px solid #30363d; border-radius: 8px;
-  padding: 20px; text-align: center;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 18px 20px;
+  position: relative;
 }
-.stat-value { font-size: 32px; font-weight: 700; color: #e6edf3; }
-.stat-label { font-size: 12px; color: #8b949e; margin-top: 4px; text-transform: uppercase; letter-spacing: 0.5px; }
+.stat-value { font-size: 28px; font-weight: 700; letter-spacing: -0.03em; font-variant-numeric: tabular-nums; }
+.stat-label { font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.08em; margin-top: 2px; }
+.stat-badge {
+  position: absolute; top: 12px; right: 14px;
+  font-size: 10px; color: var(--blue);
+  background: var(--blue-bg);
+  padding: 2px 8px;
+  border-radius: 100px;
+}
+.pulse { animation: pulse-dot 2s ease-in-out infinite; }
+.stat-done .stat-value { color: var(--green); }
+.stat-failed .stat-value { color: var(--red); }
+.stat-partial .stat-value { color: var(--amber); }
 
-/* 平台卡片 */
+@keyframes pulse-dot {
+  0%, 100% { opacity: 1; } 50% { opacity: 0.5; }
+}
+
+/* 进行中任务 */
+.section { margin-bottom: 28px; }
+.section-title {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--text-muted);
+  margin-bottom: 12px;
+  font-weight: 500;
+}
+.running-list { display: flex; flex-direction: column; gap: 10px; }
+.running-item { padding: 16px 18px; }
+.running-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+.running-id { font-family: var(--font-mono); font-size: 12px; color: var(--text-secondary); }
+.running-step { font-size: 11px; color: var(--text-muted); background: var(--bg-surface); padding: 2px 8px; border-radius: 100px; }
+.running-bar { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+.running-bar .progress-bar { flex: 1; }
+.running-pct { font-family: var(--font-mono); font-size: 12px; color: var(--text-muted); min-width: 32px; text-align: right; }
+.running-msg { font-size: 12px; color: var(--text-secondary); }
+
+/* 平台网格 */
 .platform-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
 @media (max-width: 900px) { .platform-grid { grid-template-columns: repeat(2, 1fr); } }
-@media (max-width: 600px) { .platform-grid { grid-template-columns: 1fr; } }
-.platform-card {
-  background: #161b22; border: 1px solid #30363d; border-left: 3px solid #30363d;
-  border-radius: 8px; padding: 16px; cursor: pointer; display: flex; align-items: center; gap: 12px;
-  transition: border-color 0.2s, background 0.2s;
-}
-.platform-card:hover { background: #1c2128; }
-.platform-icon { font-size: 28px; }
-.platform-info { flex: 1; min-width: 0; }
-.platform-name { font-weight: 600; font-size: 15px; }
-.platform-dir { font-size: 12px; color: #8b949e; margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.platform-status { font-size: 11px; padding: 2px 8px; border-radius: 10px; background: rgba(139,148,158,0.15); color: #8b949e; white-space: nowrap; }
-.platform-status.active { background: rgba(63,185,80,0.15); color: #3fb950; }
+@media (max-width: 640px) { .platform-grid { grid-template-columns: 1fr; } }
 
-/* 运行中的任务 */
-.running-section { margin-top: 8px; }
-.running-item { margin-bottom: 12px; }
+.platform-card {
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 18px;
+  transition: all var(--transition-fast);
+}
+.platform-card:hover {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent-subtle);
+}
+.platform-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; }
+.platform-icon { font-size: 24px; }
+.platform-indicator {
+  width: 7px; height: 7px;
+  border-radius: 50%;
+  background: var(--gray);
+  transition: background var(--transition-fast);
+}
+.platform-indicator.on { background: var(--green); box-shadow: 0 0 6px rgba(52, 211, 153, 0.4); }
+.platform-name { font-weight: 600; font-size: 14px; }
+.platform-type { font-size: 11px; color: var(--text-muted); }
+.platform-dir { font-size: 11px; color: var(--text-dim); margin-top: 4px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 </style>

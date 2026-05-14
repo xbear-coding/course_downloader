@@ -1,10 +1,10 @@
-"""下载处理器 — 桥接 TaskScheduler 与平台插件"""
+"""下载处理器 — 桥接 TaskScheduler 与平台插件（含 3 层错误恢复）"""
 import asyncio
 import logging
 from pathlib import Path
 from datetime import datetime
 from app.database import async_session
-from app.models import Task, TaskStatus, StepStatus
+from app.models import Task, TaskStatus, StepStatus, Account, Platform
 from app.api.ws import manager
 from app.services.platform_base import (
     BasePlatform, VideoCapable, ArticleCapable, ContentItem,
@@ -14,6 +14,25 @@ from app.services.media_converter import ts_to_mp4, extract_audio
 from app.config import DATA_DIR
 
 logger = logging.getLogger(__name__)
+
+# 3 层错误恢复：重试延迟（秒）
+RETRY_DELAYS = [0, 5, 15]
+
+
+async def _get_safe_output_dir(task: Task) -> Path:
+    """安全获取输出目录（处理 account/platform 为空的情况）"""
+    default = DATA_DIR / "downloads" / task.platform
+    if not task.account_id:
+        return default
+    async with async_session() as db:
+        acct = await db.get(Account, task.account_id)
+        if not acct:
+            return default
+        # acct.platform 可能懒加载失败，手动查询
+        plat = await db.get(Platform, acct.platform_id)
+        if plat and plat.output_dir:
+            return Path(plat.output_dir)
+    return default
 
 
 async def execute_download(task: Task):
@@ -32,7 +51,7 @@ async def execute_download(task: Task):
         url=task.url or "",
     )
 
-    output_dir = Path(task.account.platform.output_dir or str(DATA_DIR / "downloads" / task.platform)) if task.account else DATA_DIR / "downloads" / task.platform
+    output_dir = await _get_safe_output_dir(task)
     output_dir.mkdir(parents=True, exist_ok=True)
 
     steps = _get_steps(task.content_type)
@@ -46,19 +65,52 @@ async def execute_download(task: Task):
             message=step["start_msg"],
         )
 
-        try:
-            if step["name"] == "downloading" and task.content_type in ("video", "audio"):
-                await _handle_video_download(platform, task, item, output_dir, idx, total_steps)
-            elif step["name"] == "article" and task.content_type == "article":
-                await _handle_article_download(platform, task, item, output_dir, idx, total_steps)
-            elif step["name"] == "transcript":
-                await _handle_transcript(platform, task, item, output_dir, idx, total_steps)
-            elif step["name"] == "convert":
-                await _handle_convert(task, output_dir, idx, total_steps)
-        except Exception as e:
-            logger.error(f"步骤 {step['name']} 失败: {e}")
-            await _update_step_status(task.id, step["name"], StepStatus.FAILED)
-            raise
+        # 3 层错误恢复：逐级尝试
+        last_error = None
+        for retry_idx, delay in enumerate(RETRY_DELAYS):
+            if delay > 0:
+                logger.info(
+                    f"[第{retry_idx + 1}次重试] 步骤 {step['name']} "
+                    f"等待 {delay}s..."
+                )
+                await asyncio.sleep(delay)
+
+            try:
+                if step["name"] == "downloading" and task.content_type in ("video", "audio"):
+                    await _handle_video_download(platform, task, item, output_dir, idx, total_steps)
+                elif step["name"] == "article" and task.content_type == "article":
+                    await _handle_article_download(platform, task, item, output_dir, idx, total_steps)
+                elif step["name"] == "transcript":
+                    await _handle_transcript(task, output_dir, idx, total_steps)
+                elif step["name"] == "convert":
+                    await _handle_convert(task, output_dir, idx, total_steps)
+
+                # 成功
+                last_error = None
+                break
+
+            except Exception as e:
+                last_error = e
+                logger.warning(
+                    f"[{task.id}] 步骤 {step['name']} 第{retry_idx + 1}次失败: {e}"
+                )
+                continue
+
+        if last_error:
+            # 重试耗尽 → 第 2 层：降级（非关键步骤继续，关键步骤终止）
+            is_critical = step["name"] in ("downloading",)
+            if is_critical:
+                logger.error(f"[{task.id}] 关键步骤失败，终止任务: {last_error}")
+                await _update_step_status(task.id, step["name"], StepStatus.FAILED)
+                await _mark_failed(task.id, str(last_error)[:200])
+                return
+            else:
+                # 非关键步骤降级：标记跳过，继续后续
+                logger.warning(
+                    f"[{task.id}] 非关键步骤 {step['name']} 降级跳过"
+                )
+                await _update_step_status(task.id, step["name"], StepStatus.SKIPPED)
+                continue
 
         await _update_step_status(task.id, step["name"], StepStatus.DONE)
 
@@ -97,9 +149,7 @@ async def _handle_video_download(
 
     async with async_session() as db:
         db_task = await db.get(Task, task.id)
-        db_task.video_path = str(raw_output)
-        if result.file_path:
-            db_task.video_path = str(result.file_path)
+        db_task.video_path = str(result.file_path or raw_output)
         db_task.video_status = StepStatus.DONE.value
         await db.commit()
 
@@ -127,33 +177,31 @@ async def _handle_article_download(
 
 
 async def _handle_transcript(
-    platform: BasePlatform, task: Task, item: ContentItem,
-    output_dir: Path, step_idx: int, total: int,
+    task: Task, output_dir: Path, step_idx: int, total: int,
 ):
-    # 检查是否已禁用转写（通过 transcript_status == SKIPPED）
+    # 检查是否跳过转录
     async with async_session() as db:
         db_task = await db.get(Task, task.id)
         if db_task.transcript_status == StepStatus.SKIPPED.value:
             return
-        has_article = db_task.article_path and Path(db_task.article_path).exists()
-        has_video = db_task.video_path and Path(db_task.video_path).exists()
 
+    # 统一读取所需路径
+    async with async_session() as db:
+        db_task = await db.get(Task, task.id)
+        article_path_str = db_task.article_path
+        video_path_str = db_task.video_path
+
+    article_path = Path(article_path_str) if article_path_str else None
+    video_path = Path(video_path_str) if video_path_str else None
+
+    has_article = article_path and article_path.exists()
+    has_video = video_path and video_path.exists()
     transcript_text = ""
 
     if has_article:
-        # 文章类：直接读取内容作为转写
-        async with async_session() as db:
-            db_task = await db.get(Task, task.id)
-            article_path = Path(db_task.article_path)
-        if article_path.exists():
-            transcript_text = article_path.read_text(encoding="utf-8")
+        transcript_text = article_path.read_text(encoding="utf-8")
 
     elif has_video:
-        # 视频类：调用 ASR
-        async with async_session() as db:
-            db_task = await db.get(Task, task.id)
-            video_path = Path(db_task.video_path)
-
         audio_path = output_dir / f"{task.resource_id}_audio.wav"
         ok = await extract_audio(video_path, audio_path)
         if not ok:
@@ -174,13 +222,18 @@ async def _handle_transcript(
         if not api_key:
             raise RuntimeError("未找到可用的 ASR API Key")
 
-        transcript_text = await transcribe_audio(audio_path, api_key.key_value)
+        from app.services.crypto import decrypt
+        try:
+            plain_key = decrypt(api_key.key_value)
+        except Exception:
+            raise RuntimeError("ASR API Key 解密失败，加密密钥可能已变更")
+
+        transcript_text = await transcribe_audio(audio_path, plain_key)
         audio_path.unlink(missing_ok=True)
 
     if transcript_text:
         transcript_path = output_dir / f"{task.resource_id}_transcript.md"
         transcript_path.write_text(transcript_text, encoding="utf-8")
-
         await _update_progress(task.id, step_idx, total, 100)
 
         async with async_session() as db:
@@ -195,12 +248,11 @@ async def _handle_convert(
 ):
     async with async_session() as db:
         db_task = await db.get(Task, task.id)
+        raw_path = Path(db_task.video_path) if db_task.video_path else None
 
-    raw_path = Path(db_task.video_path) if db_task.video_path else None
     if not raw_path or not raw_path.exists():
         return
 
-    # 如果已经是 mp4，跳过转码
     if raw_path.suffix.lower() == ".mp4":
         await _update_progress(task.id, step_idx, total, 100)
         return
@@ -219,12 +271,10 @@ async def _handle_convert(
 async def _update_step_status(task_id: int, step: str, status: StepStatus):
     async with async_session() as db:
         db_task = await db.get(Task, task_id)
-        if step == "downloading":
-            db_task.video_status = status.value
-        elif step == "transcript":
-            db_task.transcript_status = status.value
-        elif step == "article":
-            db_task.article_status = status.value
+        field_map = {"downloading": "video_status", "transcript": "transcript_status", "article": "article_status"}
+        field = field_map.get(step)
+        if field:
+            setattr(db_task, field, status.value)
         await db.commit()
 
 
@@ -243,13 +293,20 @@ async def _mark_done(task: Task, output_dir: Path):
         db_task = await db.get(Task, task.id)
         db_task.status = TaskStatus.DONE
         db_task.downloaded_at = datetime.utcnow()
-
-        # 计算文件大小
+        total_size = 0
         for attr in ("video_path", "article_path", "transcript_path"):
             path_str = getattr(db_task, attr, None)
             if path_str and Path(path_str).exists():
-                db_task.file_size_bytes = (db_task.file_size_bytes or 0) + Path(path_str).stat().st_size
-
+                total_size += Path(path_str).stat().st_size
+        db_task.file_size_bytes = total_size
         await db.commit()
-
     await manager.push_task_done(task.id)
+
+
+async def _mark_failed(task_id: int, error: str):
+    async with async_session() as db:
+        db_task = await db.get(Task, task_id)
+        db_task.status = TaskStatus.FAILED
+        db_task.error_message = error
+        await db.commit()
+    await manager.push_task_error(task_id, "execute", error[:100])
