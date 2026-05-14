@@ -1,5 +1,6 @@
-"""腾讯会议平台插件 — 完整实现"""
+"""腾讯会议平台插件 — API 录制列表 + 详情页文字提取 + 视频导出"""
 import asyncio
+import json
 import logging
 import re
 from pathlib import Path
@@ -13,44 +14,41 @@ from app.services.browser_manager import BrowserManager
 logger = logging.getLogger(__name__)
 
 RECORDING_LIST_URL = "https://meeting.tencent.com/user-center/meeting-record"
+USER_CENTER = "https://meeting.tencent.com/user-center"
 
 
 class TencentMeetingPlugin(BasePlatform, VideoCapable):
     """腾讯会议插件
 
     流程：
-    1. 登录：打开登录页 → 扫码 → 等待跳转
-    2. 录制列表：访问录制中心 → 翻页 → 提取条目
-    3. 下载：打开详情页 → 点击导出/下载按钮
+    1. 登录：Playwright 扫码（Chrome Profile 持久化）
+    2. 录制列表：拦截 API → 提取完整数据（含 share_url_short）
+    3. 文字导出：通过 share_url 访问详情页 → 提取 纪要/时间轴/逐字稿 → .md
+    4. 视频导出：best-effort（免费版通常无权限）
     """
 
     def __init__(self):
         self.browser_mgr = BrowserManager()
+        self._api_records: list[dict] = []  # 缓存的 API 数据
 
     @property
     def platform(self) -> str:
         return "tencent_meeting"
 
     async def _check_logged_in(self, page) -> bool:
-        """通过多种方式检测是否已登录"""
-        # 方式 1: URL 检测（适用于跳转到非登录页面）
+        """多维度检测是否已登录"""
         url = page.url
         if "login" not in url and "passport" not in url:
             return True
-        # 方式 2: DOM 检测（腾讯会议 SPA 不跳转 URL，但 DOM 会变）
         try:
-            # 登录后页面上会有用户头像/信息元素
             user_els = await page.query_selector_all(
                 '[class*="avatar"], [class*="Avatar"], '
-                '[class*="user-info"], [class*="userInfo"], '
-                '[class*="login-status"], button:has-text("退出"), '
-                '[class*="header-user"], [class*="userAvatar"]'
+                '[class*="user-info"], [class*="userInfo"]'
             )
             if user_els:
                 return True
-            # 检查是否有"退出登录"文本，登录后才出现
-            body_text = await page.inner_text("body")
-            if "退出登录" in body_text or "退出" in body_text:
+            body = await page.inner_text("body")
+            if "退出登录" in body:
                 return True
         except Exception:
             pass
@@ -62,136 +60,185 @@ class TencentMeetingPlugin(BasePlatform, VideoCapable):
             page = await pb.new_page()
             await page.goto("https://meeting.tencent.com/login/", wait_until="domcontentloaded")
             await asyncio.sleep(2)
-
-            # 检测是否已有登录态（Chrome Profile 持久化）
             if await self._check_logged_in(page):
                 return LoginResult(success=True)
-
-            # 等待用户扫码（最长 180 秒）
             for _ in range(180):
                 await asyncio.sleep(1)
                 if await self._check_logged_in(page):
                     return LoginResult(success=True)
-
             return LoginResult(success=False, error_code="TIMEOUT", error_message="扫码超时")
         except Exception as e:
             return LoginResult(success=False, error_code="ERROR", error_message=str(e)[:100])
 
     async def fetch_list(self, page_token: Optional[str] = None) -> FetchResult:
+        """获取录制列表（拦截 API 获取结构化数据）"""
         pb = await self.browser_mgr.get_browser(self.platform, headless=False)
         page = await pb.new_page()
 
-        try:
-            url = RECORDING_LIST_URL
-            if page_token:
-                url = f"{RECORDING_LIST_URL}?page={page_token}"
+        api_data = []
 
-            try:
-                await page.goto(url, wait_until="domcontentloaded", timeout=15000)
-            except Exception:
-                logger.warning("[tencent_meeting] 录制列表页加载超时，尝试继续解析")
+        async def capture_api(response):
+            if "my-record-list" in response.url:
+                try:
+                    body = await response.json()
+                    records = body.get("data", {}).get("records", [])
+                    api_data.extend(records)
+                except Exception:
+                    pass
+
+        page.on("response", capture_api)
+
+        try:
+            await page.goto(RECORDING_LIST_URL, wait_until="domcontentloaded", timeout=15000)
+            await asyncio.sleep(5)
+        except Exception:
             await asyncio.sleep(5)
 
-            items = []
+        if not api_data:
+            logger.warning("[tencent_meeting] 未捕获到 API 数据")
+            return FetchResult(items=[], partial=True)
 
-            # 方案 1: 通过 data table body 中的 tr 查找
-            rows = await page.query_selector_all(".met-table__body tr, table[class*=table] tbody tr, tr[class*=record]")
-            if not rows:
-                # 方案 2: 通过纯文本查找录制条目
-                rows = await page.query_selector_all("table tbody tr, tr[data-row]")
+        self._api_records = api_data
+        items = []
 
-            if rows and len(rows) <= 1:
-                rows = []  # 只有表头或空
+        for r in api_data:
+            title = r.get("title", "") or "未知会议"
+            record_id = r.get("record_id", "") or r.get("uni_record_id", "")
+            share_code = (r.get("share_url_short", "") or "").replace("crm/", "").replace("ctm/", "")
+            jump_path = r.get("jump_path_short", "")
+            size = int(r.get("size", 0))
+            is_video = r.get("is_video", False) or size > 0
+            record_type = r.get("record_type", "")
 
-            if not rows:
-                # 方案 3: 通过 JS 直接提取结构化的录制数据
-                data = await page.evaluate("""() => {
-                    const results = [];
-                    // 找到包含录制信息的行
-                    const rows = document.querySelectorAll('tr');
-                    for (const row of rows) {
-                        const cells = row.querySelectorAll('td');
-                        if (cells.length < 2) continue;
-                        const text = row.textContent.trim();
-                        // 跳过表头行
-                        if (text.includes('文件') && text.includes('录制时间') && text.includes('文件大小')) continue;
-                        if (text.includes('会议') || text.includes('录制')) {
-                            const links = row.querySelectorAll('a');
-                            const titleEl = row.querySelector('[class*=titleContent], [class*=titleBox]');
-                            const title = titleEl ? titleEl.textContent.trim() : cells[0].textContent.trim();
-                            const firstLink = links[0] ? links[0].getAttribute('href') || '' : '';
-                            results.push({ title, link: firstLink, text: text.slice(0, 200) });
-                        }
-                    }
-                    return results;
-                }""")
-                for d in data:
-                    item_id = d.get('link', '')
-                    m = re.search(r'/(\d+)', item_id)
-                    if m:
-                        item_id = m.group(1)
-                    if not item_id:
-                        import hashlib
-                        item_id = hashlib.md5(d['title'].encode()).hexdigest()[:12]
-                    items.append(ContentItem(
-                        platform="tencent_meeting",
-                        item_id=item_id,
-                        title=d['title'][:100],
-                        content_type="video",
-                        url=d['link'] if d['link'].startswith("http") else f"https://meeting.tencent.com{d['link']}",
-                    ))
+            items.append(ContentItem(
+                platform="tencent_meeting",
+                item_id=record_id,
+                title=title[:200],
+                content_type="video" if is_video else "article",
+                url=f"https://meeting.tencent.com/{r.get('share_url_short', '')}",
+                metadata={
+                    "share_code": share_code,
+                    "jump_path": jump_path,
+                    "uni_record_id": r.get("uni_record_id", ""),
+                    "size": size,
+                    "duration": r.get("duration", "0"),
+                    "record_type": record_type,
+                    "share_url": r.get("share_url", ""),
+                },
+            ))
 
-            if rows:
-                for row in rows:
-                    try:
-                        # 尝试通过 JS 提取行数据
-                        row_data = await page.evaluate("""(row) => {
-                            const titleEl = row.querySelector('[class*=titleContent]');
-                            const linkEl = row.querySelector('a');
-                            return {
-                                title: titleEl ? titleEl.textContent.trim() : (row.querySelector('td') ? row.querySelector('td').textContent.trim() : ''),
-                                link: linkEl ? linkEl.getAttribute('href') || '' : ''
-                            };
-                        }""", row)
-                    except Exception:
-                        continue
+        return FetchResult(items=items, total_estimated=len(items))
 
-                    title = row_data.get('title', '').strip()
-                    if not title or title.startswith('文件'):
-                        continue
+    async def extract_texts(
+        self, item: ContentItem, output_dir: Path
+    ) -> dict[str, Path]:
+        """从详情页提取 纪要/时间轴/逐字稿，保存为 .md 文件
 
-                    link = row_data.get('link', '')
-                    item_id = ""
-                    m = re.search(r'/(\d+)', link)
-                    if m:
-                        item_id = m.group(1)
-                    if not item_id:
-                        import hashlib
-                        item_id = hashlib.md5(title.encode()).hexdigest()[:12]
+        返回: {"summary": Path, "timeline": Path, "transcript": Path}
+        """
+        pb = await self.browser_mgr.get_browser(self.platform, headless=False)
+        page = await pb.new_page()
 
-                    items.append(ContentItem(
-                        platform="tencent_meeting",
-                        item_id=item_id,
-                        title=title[:100],
-                        content_type="video",
-                        url=link if link.startswith("http") else f"https://meeting.tencent.com{link}",
-                    ))
+        share_code = item.metadata.get("share_code", "")
+        if not share_code:
+            logger.warning("[tencent_meeting] 无 share_code，无法提取文字")
+            return {}
 
-            if not items:
-                logger.warning("[tencent_meeting] 未找到录制列表条目")
-                return FetchResult(items=[], partial=True)
+        result_paths = {}
 
-            return FetchResult(items=items, total_estimated=len(items))
+        try:
+            # 通过 share URL 访问详情页
+            await page.goto(
+                f"https://meeting.tencent.com/crm/{share_code}",
+                wait_until="domcontentloaded", timeout=20000,
+            )
+            await asyncio.sleep(4)
+
+            # 提取当前页面的文字内容
+            # 页面默认显示"智能转写" Tab，含发言人/AI总结等
+            body_text = await page.inner_text("body")
+
+            # 切换 Tab 并提取
+            tabs = [
+                ("summary", "纪要"),
+                ("timeline", "时间轴"),
+                ("transcript", "逐字稿"),
+            ]
+
+            for key, tab_name in tabs:
+                tab_path = await self._switch_tab_and_extract(page, tab_name, item, output_dir)
+                if tab_path:
+                    result_paths[key] = tab_path
+
+            # 如果 tab 提取都没内容，把当前页面的 text 内容存为 transcript
+            if not result_paths:
+                clean_lines = [l.strip() for l in body_text.split("\n") if l.strip()]
+                if clean_lines and len(clean_lines) > 5:
+                    md = "# " + item.title + "\n\n" + "\n\n".join(clean_lines)
+                    out_path = output_dir / f"{item.item_id}_transcript.md"
+                    out_path.write_text(md, encoding="utf-8")
+                    result_paths["transcript"] = out_path
 
         except Exception as e:
-            logger.error(f"[tencent_meeting] 列表获取失败: {e}")
-            return FetchResult(items=[], partial=True)
+            logger.warning(f"[tencent_meeting] 文字提取失败: {e}")
         finally:
             await page.close()
+
+        return result_paths
+
+    async def _switch_tab_and_extract(
+        self, page, tab_name: str, item: ContentItem, output_dir: Path
+    ) -> Optional[Path]:
+        """切换 Tab 并提取内容"""
+        # 通过 JS 点击 Tab
+        clicked = await page.evaluate(f"""(name) => {{
+            const buttons = document.querySelectorAll('button');
+            for (const b of buttons) {{
+                if (b.textContent.trim() === name && b.offsetHeight > 0) {{
+                    b.scrollIntoView({{block:'center'}});
+                    b.click();
+                    return true;
+                }}
+            }}
+            return false;
+        }}""", tab_name)
+
+        if not clicked:
+            return None
+
+        await asyncio.sleep(3)
+
+        # 提取 Tab 面板内容
+        content = await page.evaluate("""(name) => {
+            // Find active/visible panel content
+            const panels = document.querySelectorAll('[class*=tab-panel-container] [class*=content], [class*=tab-panel-content]');
+            for (const p of panels) {
+                if (p.offsetHeight > 0) {
+                    return p.innerText;
+                }
+            }
+            // Fallback: all visible text
+            return document.body.innerText;
+        }""", tab_name)
+
+        if not content or len(content.strip()) < 10:
+            return None
+
+        # 保存为 .md
+        key_map = {"纪要": "summary", "时间轴": "timeline", "逐字稿": "transcript"}
+        file_key = key_map.get(tab_name, tab_name)
+
+        content = content.strip()
+        md = f"# {item.title} — {tab_name}\n\n{content}"
+        out_path = output_dir / f"{item.item_id}_{file_key}.md"
+        out_path.write_text(md, encoding="utf-8")
+        logger.info(f"[tencent_meeting] 已保存 {tab_name}: {out_path}")
+        return out_path
 
     async def download_video(
         self, item: ContentItem, output: Path, quality: str = "720p"
     ) -> DownloadResult:
+        """导出视频（best-effort，免费版通常无权限）"""
         pb = await self.browser_mgr.get_browser(self.platform, headless=False)
         page = await pb.new_page()
 
@@ -199,99 +246,53 @@ class TencentMeetingPlugin(BasePlatform, VideoCapable):
             await page.goto(RECORDING_LIST_URL, wait_until="domcontentloaded", timeout=15000)
             await asyncio.sleep(5)
 
-            # 使用 Playwright 原生 click（JS element.click() 触不了 React 事件）
-            more_icons = await page.query_selector_all('[class*=more--outlined]')
-            if not more_icons:
-                return DownloadResult(
-                    success=False, error_code="NO_MORE_BUTTON",
-                    error_message="未找到更多按钮",
-                )
-            await more_icons[-1].click()
+            # 点击"更多" → 下载
+            more_icons = await page.locator('[class*=more--outlined]').all()
+            if more_icons:
+                await more_icons[0].click()
+                await asyncio.sleep(1.5)
 
-            await asyncio.sleep(1.5)
+                dl_option = await page.query_selector('[class*=met-list--option] li:first-child')
+                if dl_option:
+                    await dl_option.click()
+                    await asyncio.sleep(2)
 
-            dl_option = await page.query_selector('[class*=met-list--option] li:first-child')
-            if not dl_option:
-                return DownloadResult(
-                    success=False, error_code="NO_DOWNLOAD_OPTION",
-                    error_message="未找到下载选项",
-                )
-            await dl_option.click()
+                    # 监听下载事件
+                    download_event = None
+                    def on_dl(dl):
+                        nonlocal download_event
+                        download_event = dl
+                    page.on("download", on_dl)
 
-            await asyncio.sleep(2)
+                    for _ in range(30):
+                        await asyncio.sleep(1)
+                        if download_event:
+                            break
 
-            # 监听下载事件（page.on 比 expect_download 更可靠）
-            download_event = None
-
-            def on_download(dl):
-                nonlocal download_event
-                download_event = dl
-
-            page.on("download", on_download)
-
-            try:
-                for _ in range(30):
-                    await asyncio.sleep(1)
                     if download_event:
-                        break
-
-                if not download_event:
-                    page.remove_listener("download", on_download)
-                    logger.info("[tencent_meeting] 菜单下载未触发，尝试备用方案")
-                else:
-                    fname = download_event.suggested_filename
-                    logger.info(f"[tencent_meeting] 下载捕获: {fname}")
-                    await download_event.save_as(str(output))
-                    page.remove_listener("download", on_download)
-                    return DownloadResult(
-                        success=True, file_path=output,
-                        file_type=output.suffix.lstrip(".") or "mp4",
-                    )
-            except Exception:
-                page.remove_listener("download", on_download)
-
-            # 方法 2: 检查是否弹出了分享对话框（下载被权限限制）
-            share_modal = await page.query_selector('[class*=ShareModal]')
-            if share_modal:
-                logger.warning("[tencent_meeting] 下载被权限限制（分享对话框替代）")
-                # 关闭对话框
-                close_btn = await share_modal.query_selector('[class*=close], button')
-                if close_btn:
-                    await close_btn.click()
-                    await asyncio.sleep(1)
-                return DownloadResult(
-                    success=False, error_code="DOWNLOAD_DISABLED",
-                    error_message="当前录制文件没有下载权限（腾讯会议免费版限制）",
-                )
-
-            # 方法 3: 查找页面中的 video 元素，获取直链
-            video_src = await page.evaluate("""() => {
-                const v = document.querySelector('video');
-                if (!v) return null;
-                return v.currentSrc || v.src || (v.querySelector('source')?.src) || null;
-            }""")
-
-            if video_src and video_src.startswith('http'):
-                logger.info(f"[tencent_meeting] 发现视频直链: {video_src[:80]}...")
-                import httpx
-                async with httpx.AsyncClient(timeout=300, follow_redirects=True) as client:
-                    resp = await client.get(video_src)
-                    if resp.status_code == 200:
-                        output.write_bytes(resp.content)
+                        page.remove_listener("download", on_dl)
+                        await download_event.save_as(str(output))
                         return DownloadResult(
                             success=True, file_path=output,
                             file_type=output.suffix.lstrip(".") or "mp4",
                         )
+                    page.remove_listener("download", on_dl)
+
+            # 检查是否弹出了分享对话框（权限限制）
+            share_modal = await page.query_selector('[class*=ShareModal]')
+            if share_modal:
+                return DownloadResult(
+                    success=False, error_code="DOWNLOAD_DISABLED",
+                    error_message="视频下载需要权限（免费版限制）",
+                )
 
             return DownloadResult(
                 success=False, error_code="DOWNLOAD_FAILED",
-                error_message="录制暂无下载权限或视频源不可用",
+                error_message="视频导出不可用",
             )
-
         except Exception as e:
             return DownloadResult(
-                success=False, error_code="ERROR",
-                error_message=str(e)[:200],
+                success=False, error_code="ERROR", error_message=str(e)[:200],
             )
         finally:
             await page.close()

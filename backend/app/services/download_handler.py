@@ -81,7 +81,7 @@ async def execute_download(task: Task):
                 elif step["name"] == "article" and task.content_type == "article":
                     await _handle_article_download(platform, task, item, output_dir, idx, total_steps)
                 elif step["name"] == "transcript":
-                    await _handle_transcript(task, output_dir, idx, total_steps)
+                    await _handle_transcript(platform, task, item, output_dir, idx, total_steps)
                 elif step["name"] == "convert":
                     await _handle_convert(task, output_dir, idx, total_steps)
 
@@ -143,7 +143,8 @@ async def _handle_video_download(
 
     result = await platform.download_video(item, raw_output, quality="720p")
     if not result.success:
-        raise RuntimeError(result.error_message or "视频下载失败")
+        logger.info(f"[{task.platform}] 视频下载跳过 ({result.error_message})")
+        return  # best-effort，不阻断流程
 
     await _update_progress(task.id, step_idx, total, 100)
 
@@ -177,13 +178,30 @@ async def _handle_article_download(
 
 
 async def _handle_transcript(
-    task: Task, output_dir: Path, step_idx: int, total: int,
+    platform: BasePlatform, task: Task, item: ContentItem,
+    output_dir: Path, step_idx: int, total: int,
 ):
     # 检查是否跳过转录
     async with async_session() as db:
         db_task = await db.get(Task, task.id)
         if db_task.transcript_status == StepStatus.SKIPPED:
             return
+
+    # 如果平台有 extract_texts（如腾讯会议详情页），优先使用
+    if hasattr(platform, "extract_texts"):
+        try:
+            text_paths = await platform.extract_texts(item, output_dir)
+            if text_paths:
+                await _update_progress(task.id, step_idx, total, 100)
+                async with async_session() as db:
+                    db_task = await db.get(Task, task.id)
+                    first_path = next(iter(text_paths.values()))
+                    db_task.transcript_path = str(first_path)
+                    db_task.transcript_status = StepStatus.DONE
+                    await db.commit()
+                return
+        except Exception as e:
+            logger.warning(f"[{task.platform}] extract_texts 失败: {e}")
 
     # 统一读取所需路径
     async with async_session() as db:
