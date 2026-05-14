@@ -5,6 +5,7 @@ from sqlalchemy import select
 from app.database import get_db
 from app.models import Platform, Account
 from app.schemas import PlatformCreate, PlatformResponse, AccountCreate, AccountResponse
+from typing import Optional
 
 router = APIRouter(prefix="/api/platforms", tags=["platforms"])
 
@@ -41,6 +42,23 @@ async def delete_platform(platform_id: int, db: AsyncSession = Depends(get_db)):
         raise HTTPException(404, "平台不存在")
     await db.delete(platform)
     await db.commit()
+
+
+@router.patch("/{platform_id}", response_model=PlatformResponse)
+async def update_platform(
+    platform_id: int, data: dict, db: AsyncSession = Depends(get_db)
+):
+    """更新平台设置（启用状态、输出目录等）"""
+    result = await db.execute(select(Platform).where(Platform.id == platform_id))
+    platform = result.scalar_one_or_none()
+    if not platform:
+        raise HTTPException(404, "平台不存在")
+    for key, value in data.items():
+        if hasattr(platform, key):
+            setattr(platform, key, value)
+    await db.commit()
+    await db.refresh(platform)
+    return platform
 
 
 # ── 账号 ──
