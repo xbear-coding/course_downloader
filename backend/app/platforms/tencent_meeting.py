@@ -220,8 +220,9 @@ class TencentMeetingPlugin(BasePlatform, VideoCapable):
 
             await asyncio.sleep(2)
 
+            # 方法 1: 捕获浏览器下载事件
             try:
-                async with page.expect_download(timeout=120000) as download_info:
+                async with page.expect_download(timeout=15000) as download_info:
                     pass
                 download = await download_info.value
                 await download.save_as(str(output))
@@ -229,55 +230,51 @@ class TencentMeetingPlugin(BasePlatform, VideoCapable):
                     success=True, file_path=output,
                     file_type=output.suffix.lstrip(".") or "mp4",
                 )
-            except Exception as e:
-                logger.warning(f"[tencent_meeting] 下载未捕获: {e}")
+            except Exception:
+                logger.info("[tencent_meeting] 菜单下载未触发，尝试备用方案")
+
+            # 方法 2: 检查是否弹出了分享对话框（下载被权限限制）
+            share_modal = await page.query_selector('[class*=ShareModal]')
+            if share_modal:
+                logger.warning("[tencent_meeting] 下载被权限限制（分享对话框替代）")
+                # 关闭对话框
+                close_btn = await share_modal.query_selector('[class*=close], button')
+                if close_btn:
+                    await close_btn.click()
+                    await asyncio.sleep(1)
                 return DownloadResult(
-                    success=False, error_code="DOWNLOAD_TIMEOUT",
-                    error_message="下载超时或未触发",
+                    success=False, error_code="DOWNLOAD_DISABLED",
+                    error_message="当前录制文件没有下载权限（腾讯会议免费版限制）",
                 )
 
-            # 尝试拦截 video 标签的 src
-            video_src = None
-            try:
-                video_el = await page.query_selector("video source, video")
-                if video_el:
-                    video_src = await video_el.get_attribute("src")
-            except Exception:
-                pass
+            # 方法 3: 查找页面中的 video 元素，获取直链
+            video_src = await page.evaluate("""() => {
+                const v = document.querySelector('video');
+                if (!v) return null;
+                return v.currentSrc || v.src || (v.querySelector('source')?.src) || null;
+            }""")
 
-            if video_src and video_src.startswith("http"):
-                # 直接下载视频文件
+            if video_src and video_src.startswith('http'):
+                logger.info(f"[tencent_meeting] 发现视频直链: {video_src[:80]}...")
                 import httpx
-                async with httpx.AsyncClient(timeout=300) as client:
+                async with httpx.AsyncClient(timeout=300, follow_redirects=True) as client:
                     resp = await client.get(video_src)
                     if resp.status_code == 200:
                         output.write_bytes(resp.content)
                         return DownloadResult(
-                            success=True, file_path=output, file_type="ts"
+                            success=True, file_path=output,
+                            file_type=output.suffix.lstrip(".") or "mp4",
                         )
-
-            # 浏览器触发的下载由 Playwright 自动处理
-            # 等待下载事件
-            try:
-                async with page.expect_download(timeout=30000) as download_info:
-                    # 可能已经点击了下载，等待下载开始
-                    pass
-                download = await download_info.value
-                await download.save_as(str(output))
-                return DownloadResult(
-                    success=True, file_path=output, file_type=output.suffix.lstrip(".") or "mp4"
-                )
-            except Exception:
-                pass
 
             return DownloadResult(
                 success=False, error_code="DOWNLOAD_FAILED",
-                error_message="无法捕获视频下载"
+                error_message="录制暂无下载权限或视频源不可用",
             )
+
         except Exception as e:
             return DownloadResult(
                 success=False, error_code="ERROR",
-                error_message=str(e)[:200]
+                error_message=str(e)[:200],
             )
         finally:
             await page.close()
