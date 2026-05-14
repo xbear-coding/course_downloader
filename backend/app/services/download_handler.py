@@ -207,17 +207,21 @@ async def _handle_transcript(
         if not ok:
             raise RuntimeError("音频提取失败")
 
-        # 获取 ASR API Key
+        # 获取 ASR API Key（支持多个 provider）
         async with async_session() as db:
             from app.models import APIKey
             from sqlalchemy import select
-            result = await db.execute(
-                select(APIKey).where(
-                    APIKey.is_active == True,
-                    APIKey.provider == "siliconflow",
+            api_key = None
+            for provider in ("siliconflow", "groq", "openai"):
+                result = await db.execute(
+                    select(APIKey).where(
+                        APIKey.is_active == True,
+                        APIKey.provider == provider,
+                    )
                 )
-            )
-            api_key = result.scalar_one_or_none()
+                api_key = result.scalar_one_or_none()
+                if api_key:
+                    break
 
         if not api_key:
             raise RuntimeError("未找到可用的 ASR API Key")

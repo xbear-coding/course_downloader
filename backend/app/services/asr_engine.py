@@ -33,7 +33,7 @@ async def transcribe_audio(
                 data={
                     "model": model,
                     "response_format": "verbose_json",
-                    "timestamp_granularities[]": "segment",
+                    "timestamp_granularities": "segment",
                     "language": "zh",
                 },
             )

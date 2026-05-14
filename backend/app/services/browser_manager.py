@@ -79,7 +79,7 @@ class PlatformBrowser:
 
 
 class BrowserManager:
-    """全局浏览器实例池
+    """全局浏览器实例池（模块级单例）
 
     策略：
     - 每个平台最多 1 个实例
@@ -87,7 +87,18 @@ class BrowserManager:
     - 闲置超过 5 分钟自动关闭
     """
 
+    _instance: Optional['BrowserManager'] = None
+
+    def __new__(cls, *args, **kwargs):
+        if cls._instance is None:
+            cls._instance = super().__new__(cls)
+            cls._instance._initialized = False
+        return cls._instance
+
     def __init__(self, max_instances: int = 2, idle_timeout: int = 300):
+        if getattr(self, '_initialized', False):
+            return
+        self._initialized = True
         self._instances: dict[str, PlatformBrowser] = {}
         self.max_instances = max_instances
         self.idle_timeout = idle_timeout

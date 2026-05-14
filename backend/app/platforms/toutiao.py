@@ -235,9 +235,10 @@ class ToutiaoPlugin(BasePlatform, ArticleCapable, VideoCapable):
                     for i, img_url in enumerate(image_urls):
                         try:
                             resp = await client.get(img_url)
-                            img_path = image_dir / f"{i + 1}.jpg"
-                            img_path.write_bytes(resp.content)
-                            content_lines.append(f"![图片{i+1}](images/{img_path.name})")
+                            if resp.status_code == 200:
+                                img_path = image_dir / f"{i + 1}.jpg"
+                                img_path.write_bytes(resp.content)
+                                content_lines.append(f"![图片{i+1}](images/{img_path.name})")
                         except Exception:
                             continue
 
@@ -272,8 +273,8 @@ class ToutiaoPlugin(BasePlatform, ArticleCapable, VideoCapable):
 
             if video_url and video_url.startswith("http"):
                 async with httpx.AsyncClient(timeout=300) as client:
-                    resp = await client.get(video_url)
-                    if resp.status_code == 200:
+                    resp = await client.get(video_url, follow_redirects=True)
+                    if resp.status_code == 200 and len(resp.content) > 1024:
                         output.write_bytes(resp.content)
                         return DownloadResult(success=True, file_path=output, file_type="mp4")
 
@@ -296,9 +297,9 @@ class ToutiaoPlugin(BasePlatform, ArticleCapable, VideoCapable):
             }""")
 
             if video_info:
-                async with httpx.AsyncClient(timeout=300) as client:
+                async with httpx.AsyncClient(timeout=300, follow_redirects=True) as client:
                     resp = await client.get(video_info)
-                    if resp.status_code == 200:
+                    if resp.status_code == 200 and len(resp.content) > 1024:
                         output.write_bytes(resp.content)
                         return DownloadResult(success=True, file_path=output, file_type="mp4")
 

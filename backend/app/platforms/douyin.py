@@ -167,11 +167,13 @@ class DouyinPlugin(BasePlatform, VideoCapable):
 
         video_url = None
 
-        # 拦截视频响应
+        # 拦截视频/直播流响应
         async def intercept_response(response):
             nonlocal video_url
-            if response.url.startswith("https://www.douyin.com/video/"):
-                return
+            url = response.url
+            if any(ext in url for ext in ['.m3u8', '.flv', '.mp4?', 'video/']):
+                if not video_url:
+                    video_url = url
 
         page.on("response", intercept_response)
 
