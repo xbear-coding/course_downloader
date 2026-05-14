@@ -1,0 +1,500 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Course_Downloader - 业务交互流程图</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { font-family: 'DM Sans','Noto Sans SC',system-ui,sans-serif; background:#0d1117; color:#e6edf3; }
+  .container { max-width:1200px; margin:0 auto; padding:32px 24px; }
+  h1 { background:linear-gradient(135deg,#1a6dff,#7c3aed); padding:28px 32px; border-radius:16px; font-size:24px; margin-bottom:32px; display:flex; align-items:center; gap:12px; }
+  h2 { font-size:18px; color:#60a5fa; margin:28px 0 16px; padding-bottom:8px; border-bottom:1px solid #30363d; }
+  h3 { font-size:14px; color:#9ca3af; margin:16px 0 10px; }
+
+  .section { background:#161b22; border:1px solid #30363d; border-radius:12px; padding:24px; margin-bottom:20px; }
+
+  .flow-row { display:flex; align-items:center; gap:6px; margin:10px 0; flex-wrap:wrap; }
+  .flow-box { padding:8px 14px; border-radius:6px; font-size:12px; font-weight:500; text-align:center; min-width:80px; }
+
+  .grid-2 { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
+  .grid-3 { display:grid; grid-template-columns:1fr 1fr 1fr; gap:16px; }
+  @media(max-width:800px){ .grid-2,.grid-3{grid-template-columns:1fr;} }
+
+  .card { background:#1c2128; border:1px solid #30363d; border-radius:8px; padding:16px; }
+  .card h3 { font-size:13px; color:#e6edf3; margin-bottom:10px; }
+  .card ul { list-style:none; padding:0; }
+  .card li { font-size:12px; color:#9ca3af; padding:4px 0; border-bottom:1px solid rgba(48,54,61,0.4); }
+  .card li:last-child { border-bottom:none; }
+  .card li strong { color:#e6edf3; }
+
+  .tag { display:inline-block; padding:2px 8px; border-radius:4px; font-size:11px; font-weight:600; }
+  .t-green { background:rgba(34,197,94,0.15); color:#22c55e; border:1px solid rgba(34,197,94,0.3); }
+  .t-blue { background:rgba(26,109,255,0.15); color:#60a5fa; border:1px solid rgba(26,109,255,0.3); }
+  .t-orange { background:rgba(234,179,8,0.15); color:#eab308; border:1px solid rgba(234,179,8,0.3); }
+  .t-red { background:rgba(239,68,68,0.15); color:#ef4444; border:1px solid rgba(239,68,68,0.3); }
+  .t-purple { background:rgba(124,58,237,0.15); color:#a78bfa; border:1px solid rgba(124,58,237,0.3); }
+  .t-cyan { background:rgba(6,182,212,0.15); color:#06b6d4; border:1px solid rgba(6,182,212,0.3); }
+
+  .note { background:rgba(234,179,8,0.08); border:1px solid rgba(234,179,8,0.25); border-radius:6px; padding:12px 16px; font-size:13px; color:#eab308; margin:12px 0; }
+</style>
+</head>
+<body>
+<div class="container">
+
+<h1>
+  <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+  Course_Downloader — 业务交互流程图
+</h1>
+
+<!-- ============================================ -->
+<!-- 1. 用户操作全流程 -->
+<!-- ============================================ -->
+<div class="section">
+<h2>📋 用户操作全流程</h2>
+<svg viewBox="0 0 860 520" style="max-width:100%;margin:10px 0;">
+  <defs>
+    <marker id="a" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M0,0 L10,5 L0,10 Z" fill="#58a6ff"/></marker>
+    <marker id="a2" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M0,0 L10,5 L0,10 Z" fill="#ef4444"/></marker>
+  </defs>
+
+  <!-- Start -->
+  <rect x="330" y="10" width="200" height="40" rx="20" fill="rgba(34,197,94,0.2)" stroke="#22c55e" stroke-width="2"/>
+  <text x="430" y="36" text-anchor="middle" fill="#22c55e" font-size="13" font-weight="600">打开 Course_Downloader</text>
+
+  <path d="M430,50 L430,70" stroke="#58a6ff" stroke-width="2" marker-end="url(#a)"/>
+
+  <!-- Dashboard -->
+  <rect x="330" y="72" width="200" height="40" rx="6" fill="rgba(26,109,255,0.15)" stroke="#60a5fa" stroke-width="1.5"/>
+  <text x="430" y="98" text-anchor="middle" fill="#60a5fa" font-size="13">仪表盘：6 平台状态一览</text>
+
+  <path d="M430,112 L430,132" stroke="#58a6ff" stroke-width="2" marker-end="url(#a)"/>
+
+  <!-- Decision -->
+  <path d="M430,135 L330,135 L330,170 L430,170" stroke="#58a6ff" stroke-width="2" fill="none"/>
+  <text x="310" y="155" fill="#9ca3af" font-size="11">扫描更新</text>
+
+  <path d="M430,135 L530,135 L530,170 L430,170" stroke="#58a6ff" stroke-width="2" fill="none"/>
+  <text x="550" y="155" fill="#9ca3af" font-size="11">直接下载</text>
+
+  <!-- Scan update flow -->
+  <rect x="250" y="170" width="160" height="40" rx="6" fill="rgba(234,179,8,0.12)" stroke="#eab308" stroke-width="1.5"/>
+  <text x="330" y="196" text-anchor="middle" fill="#eab308" font-size="12">扫描课程更新</text>
+
+  <path d="M330,210 L330,240" stroke="#58a6ff" stroke-width="2" marker-end="url(#a)"/>
+
+  <path d="M330,245 L250,245 L250,285 L330,285" stroke="#58a6ff" stroke-width="2" fill="none"/>
+  <text x="230" y="265" fill="#9ca3af" font-size="11">有新课/更新</text>
+
+  <path d="M330,245 L410,245 L410,285 L330,285" stroke="#58a6ff" stroke-width="2" fill="none"/>
+  <text x="430" y="265" fill="#9ca3af" font-size="11">无变化</text>
+
+  <rect x="250" y="290" width="160" height="40" rx="6" fill="rgba(124,58,237,0.12)" stroke="#a78bfa" stroke-width="1.5"/>
+  <text x="330" y="316" text-anchor="middle" fill="#a78bfa" font-size="12">展示变更摘要</text>
+
+  <path d="M330,330 L430,370" stroke="#58a6ff" stroke-width="2" marker-end="url(#a)"/>
+
+  <!-- Download flow -->
+  <rect x="340" y="370" width="180" height="40" rx="6" fill="rgba(26,109,255,0.15)" stroke="#60a5fa" stroke-width="1.5"/>
+  <text x="430" y="396" text-anchor="middle" fill="#60a5fa" font-size="12">加入下载队列</text>
+
+  <path d="M430,410 L430,430" stroke="#58a6ff" stroke-width="2" marker-end="url(#a)"/>
+
+  <rect x="290" y="432" width="280" height="40" rx="6" fill="rgba(34,197,94,0.12)" stroke="#22c55e" stroke-width="1.5"/>
+  <text x="430" y="450" text-anchor="middle" fill="#22c55e" font-size="11">实时 WebSocket 推送进度</text>
+  <text x="430" y="464" text-anchor="middle" fill="#9ca3af" font-size="10">分步骤显示：下载中 → 转码中 → ASR 转写中</text>
+
+  <path d="M430,472 L430,490" stroke="#58a6ff" stroke-width="2" marker-end="url(#a)"/>
+
+  <rect x="330" y="492" width="200" height="40" rx="20" fill="rgba(34,197,94,0.15)" stroke="#22c55e" stroke-width="1.5"/>
+  <text x="430" y="518" text-anchor="middle" fill="#22c55e" font-size="13">✅ 下载完成</text>
+</svg>
+
+<div class="note">用户流程的关键设计：扫描更新和直接下载是两条并行的路径，用户可以主动触发扫描，也可以直接选课程下载。WebSocket 分步骤推送让用户知道当前进度到哪一步了。</div>
+</div>
+
+<!-- ============================================ -->
+<!-- 2. 下载生命周期状态机 -->
+<!-- ============================================ -->
+<div class="section">
+<h2>🎛 下载任务生命周期状态机</h2>
+<svg viewBox="0 0 860 480" style="max-width:100%;margin:10px 0;">
+  <defs>
+    <marker id="b" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M0,0 L10,5 L0,10 Z" fill="#58a6ff"/></marker>
+  </defs>
+
+  <!-- PENDING -->
+  <rect x="90" y="180" width="90" height="40" rx="6" fill="rgba(234,179,8,0.15)" stroke="#eab308" stroke-width="2"/>
+  <text x="135" y="206" text-anchor="middle" fill="#eab308" font-size="13" font-weight="600">PENDING</text>
+
+  <path d="M180,200 L230,200" stroke="#58a6ff" stroke-width="2" marker-end="url(#b)"/>
+
+  <!-- RUNNING -->
+  <rect x="230" y="180" width="90" height="40" rx="6" fill="rgba(26,109,255,0.15)" stroke="#60a5fa" stroke-width="2"/>
+  <text x="275" y="206" text-anchor="middle" fill="#60a5fa" font-size="13" font-weight="600">RUNNING</text>
+
+  <!-- 三条分支线 -->
+  <path d="M320,200 L370,150 L420,150" stroke="#58a6ff" stroke-width="2" fill="none" marker-end="url(#b)"/>
+  <text x="355" y="140" fill="#22c55e" font-size="11">全部成功</text>
+
+  <path d="M320,200 L370,200 L420,200" stroke="#58a6ff" stroke-width="2" marker-end="url(#b)"/>
+  <text x="370" y="193" fill="#eab308" font-size="11">部分失败</text>
+
+  <path d="M320,200 L370,250 L420,250" stroke="#ef4444" stroke-width="2" fill="none" marker-end="url(#b)"/>
+  <text x="355" y="265" fill="#ef4444" font-size="11">全部失败</text>
+
+  <!-- DONE -->
+  <rect x="420" y="130" width="90" height="40" rx="6" fill="rgba(34,197,94,0.15)" stroke="#22c55e" stroke-width="2"/>
+  <text x="465" y="156" text-anchor="middle" fill="#22c55e" font-size="13" font-weight="600">DONE</text>
+
+  <!-- PARTIAL -->
+  <rect x="420" y="180" width="90" height="40" rx="6" fill="rgba(234,179,8,0.15)" stroke="#eab308" stroke-width="2"/>
+  <text x="465" y="206" text-anchor="middle" fill="#eab308" font-size="13" font-weight="600">PARTIAL</text>
+
+  <path d="M510,200 L560,200" stroke="#58a6ff" stroke-width="2" marker-end="url(#b)"/>
+
+  <rect x="560" y="180" width="90" height="40" rx="6" fill="rgba(26,109,255,0.12)" stroke="#60a5fa" stroke-width="1.5"/>
+  <text x="605" y="196" text-anchor="middle" fill="#60a5fa" font-size="11">手动重试</text>
+  <text x="605" y="210" text-anchor="middle" fill="#9ca3af" font-size="10">失败子步骤</text>
+
+  <path d="M605,180 L605,150" stroke="#58a6ff" stroke-width="1.5" stroke-dasharray="4" marker-end="url(#b)"/>
+
+  <!-- FAILED -->
+  <rect x="420" y="230" width="90" height="40" rx="6" fill="rgba(239,68,68,0.15)" stroke="#ef4444" stroke-width="2"/>
+  <text x="465" y="256" text-anchor="middle" fill="#ef4444" font-size="13" font-weight="600">FAILED</text>
+
+  <path d="M510,250 L560,250" stroke="#ef4444" stroke-width="2" marker-end="url(#b)"/>
+
+  <rect x="560" y="230" width="90" height="60" rx="6" fill="rgba(239,68,68,0.1)" stroke="#ef4444" stroke-width="1" stroke-dasharray="4"/>
+  <text x="605" y="256" text-anchor="middle" fill="#ef4444" font-size="11">重试 ≥ 3 次</text>
+  <text x="605" y="270" text-anchor="middle" fill="#9ca3af" font-size="10">→ FATAL</text>
+
+  <!-- NEW 和 UPDATED -->
+  <rect x="90" y="70" width="90" height="40" rx="6" fill="rgba(6,182,212,0.15)" stroke="#06b6d4" stroke-width="2"/>
+  <text x="135" y="96" text-anchor="middle" fill="#06b6d4" font-size="13" font-weight="600">NEW</text>
+
+  <path d="M135,110 L135,140 L180,180" stroke="#58a6ff" stroke-width="2" fill="none" marker-end="url(#b)"/>
+  <text x="150" y="130" fill="#9ca3af" font-size="11">确认下载</text>
+
+  <rect x="230" y="70" width="90" height="40" rx="6" fill="rgba(124,58,237,0.15)" stroke="#a78bfa" stroke-width="2"/>
+  <text x="275" y="96" text-anchor="middle" fill="#a78bfa" font-size="13" font-weight="600">UPDATED</text>
+
+  <path d="M275,110 L275,140 L230,180" stroke="#a78bfa" stroke-width="2" fill="none" marker-end="url(#b)"/>
+  <text x="300" y="140" fill="#9ca3af" font-size="11">重新下载</text>
+
+  <!-- Arrow from DONE back to UPDATED -->
+  <path d="M465,170 L465,110 L320,90" stroke="#a78bfa" stroke-width="1.5" stroke-dasharray="4" fill="none" marker-end="url(#b)"/>
+  <text x="400" y="100" fill="#9ca3af" font-size="11">下次扫描检测到更新</text>
+</svg>
+
+<div class="grid-2" style="margin-top:16px;">
+  <div class="card">
+    <h3>状态说明</h3>
+    <ul>
+      <li><strong>NEW</strong> — 扫描发现的新课程，等待用户确认</li>
+      <li><strong>UPDATED</strong> — 已下载课程但服务端有更新，等待用户确认重下</li>
+      <li><strong>PENDING</strong> — 已确认下载，在队列中等待</li>
+      <li><strong>RUNNING</strong> — 正在处理</li>
+      <li><strong>PARTIAL</strong> — 部分成功（视频下了但 ASR 失败）</li>
+      <li><strong>DONE</strong> — 全部成功</li>
+      <li><strong>FAILED</strong> — 全部失败（可重试）</li>
+      <li><strong>FATAL</strong> — 重试超过上限，不再自动重试</li>
+    </ul>
+  </div>
+  <div class="card">
+    <h3>子步骤状态（独立）</h3>
+    <ul>
+      <li><span class="tag t-blue">video_status</span> — 视频下载</li>
+      <li><span class="tag t-purple">transcript_status</span> — ASR 转写</li>
+      <li><span class="tag t-cyan">subtitle_status</span> — 字幕下载（B站）</li>
+      <li><span class="tag t-orange">article_status</span> — 文章抓取（头条/小红书）</li>
+      <li>每个子步骤独立记录 pending / running / done / failed / skipped</li>
+    </ul>
+  </div>
+</div>
+</div>
+
+<!-- ============================================ -->
+<!-- 3. 三层错误恢复流程 -->
+<!-- ============================================ -->
+<div class="section">
+<h2>🔁 三层错误恢复流程</h2>
+<svg viewBox="0 0 860 400" style="max-width:100%;margin:10px 0;">
+  <defs>
+    <marker id="c" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M0,0 L10,5 L0,10 Z" fill="#58a6ff"/></marker>
+  </defs>
+
+  <!-- Layer 1 -->
+  <rect x="30" y="20" width="800" height="100" rx="10" fill="rgba(34,197,94,0.05)" stroke="#22c55e" stroke-width="1.5" stroke-dasharray="4"/>
+  <text x="50" y="45" fill="#22c55e" font-size="13" font-weight="600">L1：操作级别（秒级恢复）</text>
+
+  <rect x="60" y="60" width="100" height="36" rx="6" fill="rgba(26,109,255,0.12)" stroke="#60a5fa" stroke-width="1"/>
+  <text x="110" y="83" text-anchor="middle" fill="#60a5fa" font-size="11">操作失败</text>
+
+  <text x="195" y="83" fill="#9ca3af" font-size="16">→</text>
+
+  <rect x="220" y="60" width="100" height="36" rx="6" fill="rgba(234,179,8,0.12)" stroke="#eab308" stroke-width="1"/>
+  <text x="270" y="83" text-anchor="middle" fill="#eab308" font-size="11">重试 1（立即）</text>
+
+  <text x="355" y="83" fill="#9ca3af" font-size="16">→</text>
+
+  <rect x="380" y="60" width="100" height="36" rx="6" fill="rgba(234,179,8,0.12)" stroke="#eab308" stroke-width="1"/>
+  <text x="430" y="83" text-anchor="middle" fill="#eab308" font-size="11">重试 2（5s）</text>
+
+  <text x="515" y="83" fill="#9ca3af" font-size="16">→</text>
+
+  <rect x="540" y="60" width="100" height="36" rx="6" fill="rgba(234,179,8,0.12)" stroke="#eab308" stroke-width="1"/>
+  <text x="590" y="83" text-anchor="middle" fill="#eab308" font-size="11">重试 3（15s）</text>
+
+  <text x="675" y="83" fill="#9ca3af" font-size="16">→</text>
+
+  <rect x="700" y="60" width="100" height="36" rx="6" fill="rgba(239,68,68,0.12)" stroke="#ef4444" stroke-width="1"/>
+  <text x="750" y="83" text-anchor="middle" fill="#ef4444" font-size="11">→ L2</text>
+
+  <!-- Arrow -->
+  <path d="M430,96 L430,130" stroke="#30363d" stroke-width="1.5" marker-end="url(#c)"/>
+
+  <!-- Layer 2 -->
+  <rect x="30" y="130" width="800" height="100" rx="10" fill="rgba(234,179,8,0.05)" stroke="#eab308" stroke-width="1.5" stroke-dasharray="4"/>
+  <text x="50" y="155" fill="#eab308" font-size="13" font-weight="600">L2：任务级别（分钟级恢复）</text>
+
+  <rect x="60" y="170" width="140" height="36" rx="6" fill="rgba(26,109,255,0.12)" stroke="#60a5fa" stroke-width="1"/>
+  <text x="130" y="193" text-anchor="middle" fill="#60a5fa" font-size="11">标记子步骤失败</text>
+
+  <text x="235" y="193" fill="#9ca3af" font-size="16">→</text>
+
+  <rect x="260" y="170" width="140" height="36" rx="6" fill="rgba(26,109,255,0.12)" stroke="#60a5fa" stroke-width="1"/>
+  <text x="330" y="193" text-anchor="middle" fill="#60a5fa" font-size="11">继续其他子步骤</text>
+
+  <text x="435" y="193" fill="#9ca3af" font-size="16">→</text>
+
+  <rect x="460" y="170" width="140" height="36" rx="6" fill="rgba(234,179,8,0.12)" stroke="#eab308" stroke-width="1"/>
+  <text x="530" y="193" text-anchor="middle" fill="#eab308" font-size="11">任务结束整体重试</text>
+
+  <text x="635" y="193" fill="#9ca3af" font-size="16">→</text>
+
+  <rect x="660" y="170" width="140" height="36" rx="6" fill="rgba(239,68,68,0.12)" stroke="#ef4444" stroke-width="1"/>
+  <text x="730" y="193" text-anchor="middle" fill="#ef4444" font-size="11">→ L3</text>
+
+  <!-- Arrow -->
+  <path d="M430,206 L430,240" stroke="#30363d" stroke-width="1.5" marker-end="url(#c)"/>
+
+  <!-- Layer 3 -->
+  <rect x="30" y="240" width="800" height="100" rx="10" fill="rgba(239,68,68,0.05)" stroke="#ef4444" stroke-width="1.5" stroke-dasharray="4"/>
+  <text x="50" y="265" fill="#ef4444" font-size="13" font-weight="600">L3：系统级别（小时级恢复 + 自动重置）</text>
+
+  <rect x="60" y="280" width="160" height="36" rx="6" fill="rgba(239,68,68,0.12)" stroke="#ef4444" stroke-width="1"/>
+  <text x="140" y="303" text-anchor="middle" fill="#ef4444" font-size="11">标记 FATAL</text>
+
+  <rect x="260" y="280" width="160" height="36" rx="6" fill="rgba(239,68,68,0.12)" stroke="#eab308" stroke-width="1"/>
+  <text x="340" y="303" text-anchor="middle" fill="#eab308" font-size="11">通知用户</text>
+
+  <rect x="460" y="280" width="160" height="36" rx="6" fill="rgba(26,109,255,0.12)" stroke="#60a5fa" stroke-width="1"/>
+  <text x="540" y="303" text-anchor="middle" fill="#60a5fa" font-size="11">提供重试/跳过按钮</text>
+</svg>
+
+<div class="grid-3" style="margin-top:12px;">
+  <div class="card">
+    <h3>⏱ 实时监测</h3>
+    <ul>
+      <li>WebSocket 每 1 秒推送子步骤状态</li>
+      <li>子步骤 5 分钟无进度 → 自动 kill 重启</li>
+      <li>浏览器 10 分钟无响应 → 关闭 + 重启</li>
+    </ul>
+  </div>
+  <div class="card">
+    <h3>🔄 自动纠错</h3>
+    <ul>
+      <li>下载连接 30 秒无数据 → 断线重连</li>
+      <li>ASR API 60 秒无响应 → 取消 + 重新提交</li>
+      <li>崩溃重启 → SQLite WAL 模式防损坏</li>
+    </ul>
+  </div>
+  <div class="card">
+    <h3>🛑 自动重置</h3>
+    <ul>
+      <li>浏览器崩溃 → 自动启动新实例</li>
+      <li>数据库连接丢失 → 自动重连</li>
+      <li>超过 3 次恢复仍失败 → 标记 FATAL</li>
+    </ul>
+  </div>
+</div>
+</div>
+
+<!-- ============================================ -->
+<!-- 4. 增量检测流程 -->
+<!-- ============================================ -->
+<div class="section">
+<h2>📊 增量检测流程</h2>
+<svg viewBox="0 0 860 460" style="max-width:100%;margin:10px 0;">
+  <defs>
+    <marker id="d" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M0,0 L10,5 L0,10 Z" fill="#58a6ff"/></marker>
+  </defs>
+
+  <rect x="60" y="15" width="200" height="36" rx="6" fill="rgba(26,109,255,0.12)" stroke="#60a5fa" stroke-width="1.5"/>
+  <text x="160" y="38" text-anchor="middle" fill="#60a5fa" font-size="12">用户点击「扫描更新」</text>
+
+  <path d="M160,51 L160,70" stroke="#58a6ff" stroke-width="2" marker-end="url(#d)"/>
+
+  <rect x="60" y="72" width="200" height="36" rx="6" fill="rgba(26,109,255,0.12)" stroke="#60a5fa" stroke-width="1.5"/>
+  <text x="160" y="95" text-anchor="middle" fill="#60a5fa" font-size="12">API fetch_list() 获取服务器列表</text>
+
+  <path d="M160,108 L160,140" stroke="#58a6ff" stroke-width="2" marker-end="url(#d)"/>
+
+  <!-- Decision -->
+  <path d="M160,145 L60,145 L60,195 L160,195" fill="none" stroke="#58a6ff" stroke-width="2"/>
+  <path d="M160,145 L260,145 L260,195 L160,195" fill="none" stroke="#58a6ff" stroke-width="2"/>
+
+  <text x="55" y="175" fill="#22c55e" font-size="11">resource_id 不存在</text>
+  <text x="270" y="175" fill="#eab308" font-size="11">resource_id 存在</text>
+
+  <!-- Left: new course -->
+  <rect x="30" y="200" width="190" height="36" rx="6" fill="rgba(34,197,94,0.12)" stroke="#22c55e" stroke-width="1.5"/>
+  <text x="125" y="223" text-anchor="middle" fill="#22c55e" font-size="12">标记 NEW → 加入队列</text>
+
+  <path d="M125,236 L125,260" stroke="#58a6ff" stroke-width="2" marker-end="url(#d)"/>
+
+  <rect x="30" y="262" width="190" height="36" rx="6" fill="rgba(124,58,237,0.12)" stroke="#a78bfa" stroke-width="1.5"/>
+  <text x="125" y="285" text-anchor="middle" fill="#a78bfa" font-size="12">汇总变更摘要</text>
+
+  <!-- Right: existing course -->
+  <rect x="260" y="200" width="190" height="36" rx="6" fill="rgba(234,179,8,0.12)" stroke="#eab308" stroke-width="1.5"/>
+  <text x="355" y="223" text-anchor="middle" fill="#eab308" font-size="12">比对更新时间/时长</text>
+
+  <path d="M355,236 L355,260" stroke="#58a6ff" stroke-width="2" marker-end="url(#d)"/>
+
+  <path d="M355,265 L260,265 L260,300 L355,300" fill="none" stroke="#eab308" stroke-width="2"/>
+  <path d="M355,265 L450,265 L450,300 L355,300" fill="none" stroke="#22c55e" stroke-width="2"/>
+
+  <text x="250" y="285" fill="#eab308" font-size="11">有更新（时间戳/时长不同）</text>
+  <text x="460" y="285" fill="#22c55e" font-size="11">无变化</text>
+
+  <rect x="250" y="305" width="190" height="36" rx="6" fill="rgba(124,58,237,0.12)" stroke="#a78bfa" stroke-width="1.5"/>
+  <text x="345" y="328" text-anchor="middle" fill="#a78bfa" font-size="12">标记 UPDATED</text>
+
+  <rect x="460" y="305" width="120" height="36" rx="6" fill="rgba(34,197,94,0.1)" stroke="#22c55e" stroke-width="1"/>
+  <text x="520" y="328" text-anchor="middle" fill="#22c55e" font-size="12">跳过</text>
+
+  <!-- Merge -->
+  <path d="M125,298 L125,340 L280,340" fill="none" stroke="#58a6ff" stroke-width="2"/>
+  <path d="M440,323 L520,340 L280,340" fill="none" stroke="#58a6ff" stroke-width="1.5"/>
+
+  <rect x="200" y="340" width="160" height="36" rx="6" fill="rgba(124,58,237,0.12)" stroke="#a78bfa" stroke-width="1.5"/>
+  <text x="280" y="363" text-anchor="middle" fill="#a78bfa" font-size="12">UI 展示变更摘要</text>
+
+  <path d="M280,376 L280,400" stroke="#58a6ff" stroke-width="2" marker-end="url(#d)"/>
+
+  <rect x="200" y="402" width="160" height="36" rx="20" fill="rgba(34,197,94,0.12)" stroke="#22c55e" stroke-width="1.5"/>
+  <text x="280" y="426" text-anchor="middle" fill="#22c55e" font-size="12">等待用户确认下载</text>
+</svg>
+
+<div class="note">增量检测的核心：用 resource_id（而非标题）做唯一标识，用服务器更新时间戳和视频时长变化判断是否有更新，避免重复下载和漏下载。</div>
+</div>
+
+<!-- ============================================ -->
+<!-- 5. ASR 管道流程 -->
+<!-- ============================================ -->
+<div class="section">
+<h2>🎤 ASR 转写管道</h2>
+<svg viewBox="0 0 860 240" style="max-width:100%;margin:10px 0;">
+  <defs>
+    <marker id="e" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M0,0 L10,5 L0,10 Z" fill="#58a6ff"/></marker>
+  </defs>
+
+  <rect x="30" y="80" width="120" height="44" rx="6" fill="rgba(26,109,255,0.15)" stroke="#60a5fa" stroke-width="1.5"/>
+  <text x="90" y="100" text-anchor="middle" fill="#60a5fa" font-size="11">视频下载完成</text>
+  <text x="90" y="116" text-anchor="middle" fill="#9ca3af" font-size="10">.mp4 / .ts</text>
+
+  <text x="175" y="106" fill="#9ca3af" font-size="18">→</text>
+
+  <rect x="200" y="80" width="120" height="44" rx="6" fill="rgba(234,179,8,0.15)" stroke="#eab308" stroke-width="1.5"/>
+  <text x="260" y="100" text-anchor="middle" fill="#eab308" font-size="11">ffmpeg 提取音频</text>
+  <text x="260" y="116" text-anchor="middle" fill="#9ca3af" font-size="10">16kHz WAV</text>
+
+  <text x="345" y="106" fill="#9ca3af" font-size="18">→</text>
+
+  <rect x="370" y="50" width="120" height="44" rx="6" fill="rgba(124,58,237,0.15)" stroke="#a78bfa" stroke-width="1.5"/>
+  <text x="430" y="70" text-anchor="middle" fill="#a78bfa" font-size="11">音频 > 25MB？</text>
+
+  <path d="M430,94 L430,110" stroke="#58a6ff" stroke-width="1.5"/>
+  <path d="M430,115 L390,115 L390,140 L430,140" fill="none" stroke="#eab308" stroke-width="1.5"/>
+  <path d="M430,115 L470,115 L470,140 L430,140" fill="none" stroke="#22c55e" stroke-width="1.5"/>
+
+  <text x="370" y="133" fill="#eab308" font-size="10">是：分段</text>
+  <text x="485" y="133" fill="#22c55e" font-size="10">否：直接</text>
+
+  <rect x="340" y="145" width="180" height="36" rx="6" fill="rgba(124,58,237,0.12)" stroke="#a78bfa" stroke-width="1.5"/>
+  <text x="430" y="168" text-anchor="middle" fill="#a78bfa" font-size="12">SiliconFlow API 转写</text>
+
+  <text x="545" y="106" fill="#9ca3af" font-size="18">→</text>
+
+  <rect x="570" y="60" width="130" height="44" rx="6" fill="rgba(124,58,237,0.15)" stroke="#a78bfa" stroke-width="1.5"/>
+  <text x="635" y="80" text-anchor="middle" fill="#a78bfa" font-size="11">合并时间戳偏移</text>
+  <text x="635" y="96" text-anchor="middle" fill="#9ca3af" font-size="10">（分段时 +600s）</text>
+
+  <text x="725" y="106" fill="#9ca3af" font-size="18">→</text>
+
+  <rect x="750" y="80" width="100" height="44" rx="6" fill="rgba(34,197,94,0.15)" stroke="#22c55e" stroke-width="1.5"/>
+  <text x="800" y="106" text-anchor="middle" fill="#22c55e" font-size="12">保存 .md</text>
+</svg>
+
+<div class="grid-2" style="margin-top:16px;">
+  <div class="card">
+    <h3>输出格式示例</h3>
+    <pre style="font-size:11px;background:#0d1117;border:1px solid #30363d;border-radius:4px;padding:10px;color:#e6edf3;">
+# 课程名称 - 转写稿
+
+**00:00:12 →** 大家好，今天我们来讲…
+**00:01:45 →** 首先我们看第一个知识点…
+**00:05:23 →** 这个地方要注意…
+**00:12:08 →** 总结一下今天的重点…
+    </pre>
+  </div>
+  <div class="card">
+    <h3>故障保护</h3>
+    <ul>
+      <li>超时：30s + 每段音频时长 × 2s</li>
+      <li>重试：最多 3 次，指数退避（5s→15s→45s）</li>
+      <li>空结果：跳过当前段，不中断整任务</li>
+      <li>部分成功：每段完成后立即存 .part 文件</li>
+      <li>模型：TeleAI/TeleSpeechASR（支持时间戳输出）</li>
+    </ul>
+  </div>
+</div>
+</div>
+
+<!-- ============================================ -->
+<!-- 6. 平台插件生命周期 -->
+<!-- ============================================ -->
+<div class="section">
+<h2>🔌 平台插件调用生命周期</h2>
+<svg viewBox="0 0 860 340" style="max-width:100%;margin:10px 0;">
+  <defs>
+    <marker id="f" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M0,0 L10,5 L0,10 Z" fill="#58a6ff"/></marker>
+  </defs>
+
+  <rect x="30" y="20" width="200" height="36" rx="6" fill="rgba(26,109,255,0.12)" stroke="#60a5fa" stroke-width="1.5"/>
+  <text x="130" y="43" text-anchor="middle" fill="#60a5fa" font-size="12">1. login(account_id)</text>
+
+  <path d="M130,56 L130,75" stroke="#58a6ff" stroke-width="2" marker-end="url(#f)"/>
+
+  <path d="M130,80 L50,80 L50,120 L130,120" fill="none" stroke="#22c55e" stroke-width="1.5"/>
+  <path d="M130,80 L210,80 L210,120 L130,120" fill="none" stroke="#ef4444" stroke-width="1.5"/>
+
+  <text x="30" y="108" fill="#22c55e" font-size="11">成功 → 2</text>
+  <text x="225" y="108" fill="#ef4444" font-size="11">失败 → 重试 / FATAL</text>
+
+  <rect x="60" y="125" width="140" height="36" rx="6" fill="rgba(26,109,255,0.12)" stroke="#60a5fa" stroke-width="1.5"/>
+  <text x="130" y="148" text-anchor="middle" fill="#60a5fa" font-size="12">2. fetch_list()</text>
+
+  <path d="M130,161 L130,180" stroke="#58a6ff" stroke-width="2" marker-end="url(#f)"/>
+
+  <rect x="60" y="185" width="140" height="36" rx="6" fill="rgba(26,109,255,0.12)" stroke="#60a5fa" stroke-width="1.5"/>
+  <text x="130" y="198" text-anchor="middle" fill="#60a5fa" font-size="11">3. 增量比对</text>
+  <text x="130" y="214" text-anchor="middle" fill="#9ca3af" font-size="10">SQLite ↔ 服务器</text>
+</svg>
+</div>
+
+</div>
+</body>
+</html>

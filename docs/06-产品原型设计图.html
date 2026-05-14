@@ -1,0 +1,641 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Course_Downloader 产品原型</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { font-family: 'Inter','Noto Sans SC',sans-serif; background:#f1f5f9; color:#1e293b; padding:24px; }
+  .container { max-width:1280px; margin:0 auto; }
+  h1 { font-size:24px; margin-bottom:8px; display:flex; align-items:center; gap:10px; }
+  h1 small { font-size:14px; font-weight:400; color:#64748b; }
+  .subtitle { font-size:14px; color:#64748b; margin-bottom:32px; }
+
+  .page-section { margin-bottom:48px; }
+  .page-section h2 { font-size:18px; margin-bottom:16px; padding-bottom:8px; border-bottom:2px solid #e2e8f0; display:flex; align-items:center; gap:8px; }
+  .page-section h2 small { font-size:12px; font-weight:400; color:#94a3b8; }
+
+  /* Prototype frame */
+  .prototype { background:white; border-radius:12px; box-shadow:0 4px 24px rgba(0,0,0,0.08); overflow:hidden; position:relative; border:1px solid #e2e8f0; }
+
+  .nav { display:flex; align-items:center; padding:0 24px; height:56px; background:#0f172a; color:white; }
+  .nav-brand { font-weight:700; font-size:16px; display:flex; align-items:center; gap:8px; }
+  .nav-brand span { color:#38bdf8; }
+  .nav-links { display:flex; gap:24px; margin-left:40px; }
+  .nav-link { font-size:13px; color:#94a3b8; padding:4px 0; border-bottom:2px solid transparent; cursor:default; }
+  .nav-link.active { color:white; border-bottom-color:#38bdf8; }
+  .nav-right { margin-left:auto; display:flex; align-items:center; gap:12px; }
+  .account-badge { background:#334155; padding:4px 12px; border-radius:4px; font-size:12px; color:#e2e8f0; }
+
+  .content { padding:24px; }
+
+  /* Annotation */
+  .anno { position:absolute; }
+  .anno-line { position:absolute; border-top:2px dashed #f59e0b; }
+  .anno-tag { background:#f59e0b; color:white; font-size:11px; padding:2px 8px; border-radius:4px; font-weight:600; display:inline-block; margin-bottom:4px; }
+  .anno-text { font-size:11px; color:#64748b; line-height:1.5; }
+  .anno-box { background:rgba(245,158,11,0.06); border:1px dashed #f59e0b; border-radius:8px; padding:12px; position:relative; z-index:2; }
+
+  .stats-row { display:flex; gap:12px; margin-bottom:20px; }
+  .stat-card { flex:1; padding:16px; border-radius:8px; border:1px solid #e2e8f0; text-align:center; }
+  .stat-card .num { font-size:28px; font-weight:700; color:#0f172a; }
+  .stat-card .label { font-size:12px; color:#64748b; margin-top:4px; }
+
+  .platform-grid { display:grid; grid-template-columns:1fr 1fr 1fr; gap:12px; margin-bottom:20px; }
+  .p-card { padding:16px; border-radius:8px; border:1px solid #e2e8f0; }
+  .p-card .p-name { font-weight:600; font-size:14px; }
+  .p-card .p-status { font-size:11px; }
+  .p-card .p-accts { font-size:12px; color:#64748b; margin-top:8px; }
+
+  .task-table { width:100%; border-collapse:collapse; font-size:13px; }
+  .task-table th { text-align:left; padding:10px 12px; background:#f8fafc; color:#64748b; font-weight:600; font-size:11px; text-transform:uppercase; border-bottom:1px solid #e2e8f0; }
+  .task-table td { padding:10px 12px; border-bottom:1px solid #f1f5f9; }
+  .task-table tr:hover { background:#f8fafc; }
+
+  .progress-comp { padding:16px; border:1px solid #e2e8f0; border-radius:8px; margin-bottom:16px; }
+  .progress-header { display:flex; justify-content:space-between; margin-bottom:8px; }
+  .progress-title { font-weight:600; font-size:14px; }
+  .progress-elapsed { font-size:12px; color:#64748b; }
+  .step-list { margin-top:8px; }
+  .step { display:flex; align-items:center; gap:8px; padding:6px 0; font-size:12px; }
+  .step-icon { width:20px; height:20px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:10px; }
+  .step-icon.done { background:#dcfce7; color:#16a34a; }
+  .step-icon.running { background:#dbeafe; color:#2563eb; }
+  .step-icon.pending { background:#f1f5f9; color:#94a3b8; }
+  .step-bar { flex:1; height:6px; background:#f1f5f9; border-radius:3px; max-width:200px; }
+  .step-bar-fill { height:100%; border-radius:3px; background:#2563eb; }
+
+  .btn { padding:6px 14px; border-radius:6px; font-size:13px; font-weight:500; border:none; cursor:default; }
+  .btn-primary { background:#2563eb; color:white; }
+  .btn-sm { padding:4px 10px; font-size:12px; }
+  .btn-outline { background:transparent; border:1px solid #e2e8f0; color:#475569; }
+  .badge { display:inline-block; padding:2px 8px; border-radius:4px; font-size:11px; font-weight:600; }
+  .badge-green { background:#dcfce7; color:#16a34a; }
+  .badge-blue { background:#dbeafe; color:#2563eb; }
+  .badge-yellow { background:#fef3c7; color:#d97706; }
+  .badge-red { background:#fee2e2; color:#dc2626; }
+  .badge-gray { background:#f1f5f9; color:#64748b; }
+
+  .section-title { font-size:14px; font-weight:600; margin-bottom:12px; }
+
+  .view-tabs { display:flex; gap:0; margin-bottom:16px; border-bottom:1px solid #e2e8f0; }
+  .view-tab { padding:8px 16px; font-size:13px; color:#64748b; border-bottom:2px solid transparent; cursor:default; }
+  .view-tab.active { color:#2563eb; border-bottom-color:#2563eb; font-weight:500; }
+
+  .checkbox-label { display:flex; align-items:center; gap:8px; font-size:13px; padding:2px 0; }
+
+  .form-group { margin-bottom:16px; }
+  .form-group label { display:block; font-size:12px; font-weight:600; color:#475569; margin-bottom:4px; }
+  .form-group input { width:100%; padding:8px 12px; border:1px solid #e2e8f0; border-radius:6px; font-size:13px; }
+
+  .settings-grid { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
+  .settings-card { padding:20px; border:1px solid #e2e8f0; border-radius:8px; }
+  .settings-card h3 { font-size:14px; font-weight:600; margin-bottom:12px; display:flex; align-items:center; gap:6px; }
+
+  .filter-bar { display:flex; gap:8px; align-items:center; margin-bottom:16px; }
+  .filter-bar input { padding:6px 12px; border:1px solid #e2e8f0; border-radius:6px; font-size:13px; width:200px; }
+</style>
+</head>
+<body>
+<div class="container">
+<h1>
+  <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#2563eb" stroke-width="2"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M2 8h20"/><circle cx="12" cy="15" r="2"/></svg>
+  Course_Downloader — 产品原型设计
+  <small>v1.0</small>
+</h1>
+<p class="subtitle">本原型展示产品的主要页面布局、交互组件和用户流程。灰色虚线框为交互行为标注说明。</p>
+
+<!-- ============================================ -->
+<!-- 页面 1：仪表盘 -->
+<!-- ============================================ -->
+<div class="page-section">
+<h2>📊 页面 1：仪表盘 <small>Dashboard — 用户首页</small></h2>
+
+<div class="prototype">
+  <!-- Nav -->
+  <div class="nav">
+    <div class="nav-brand">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#38bdf8" stroke-width="2"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M2 8h20"/></svg>
+      Course_Downloader
+    </div>
+    <div class="nav-links">
+      <span class="nav-link active">仪表盘</span>
+      <span class="nav-link">任务中心</span>
+      <span class="nav-link">设置</span>
+      <span class="nav-link">日志</span>
+    </div>
+    <div class="nav-right">
+      <span class="account-badge">👤 当前：默认账号</span>
+    </div>
+  </div>
+
+  <div class="content" style="position:relative;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
+      <h3 style="font-size:16px;">仪表盘</h3>
+      <div style="display:flex;gap:8px;">
+        <button class="btn btn-outline btn-sm">🔄 扫描更新</button>
+      </div>
+    </div>
+
+    <!-- Stats -->
+    <div class="stats-row">
+      <div class="stat-card"><div class="num">6</div><div class="label">平台总数</div></div>
+      <div class="stat-card"><div class="num">4</div><div class="label">已登录</div></div>
+      <div class="stat-card"><div class="num">23</div><div class="label">今日新增</div></div>
+      <div class="stat-card"><div class="num">312</div><div class="label">累计下载</div></div>
+      <div class="stat-card"><div class="num">45.2</div><div class="label">占用空间 GB</div></div>
+    </div>
+
+    <!-- Platform Cards -->
+    <div class="section-title">平台概览</div>
+    <div class="platform-grid">
+      <div class="p-card" style="border-left:4px solid #2563eb;">
+        <div style="display:flex;justify-content:space-between;">
+          <span class="p-name">腾讯会议</span>
+          <span class="badge badge-green">已登录</span>
+        </div>
+        <div class="p-accts">1 个账号 · 12 条录制待下载</div>
+        <div style="margin-top:8px;display:flex;gap:6px;">
+          <button class="btn btn-sm btn-primary">获取列表</button>
+        </div>
+      </div>
+      <div class="p-card" style="border-left:4px solid #16a34a;">
+        <div style="display:flex;justify-content:space-between;">
+          <span class="p-name">小鹅通</span>
+          <span class="badge badge-blue">未登录</span>
+        </div>
+        <div class="p-accts">0 个账号</div>
+        <div style="margin-top:8px;"><button class="btn btn-sm btn-outline">添加账号</button></div>
+      </div>
+      <div class="p-card" style="border-left:4px solid #a855f7;">
+        <div style="display:flex;justify-content:space-between;">
+          <span class="p-name">B站</span>
+          <span class="badge badge-green">已登录</span>
+        </div>
+        <div class="p-accts">1 个账号 · 3 条新收藏</div>
+        <div style="margin-top:8px;"><button class="btn btn-sm btn-primary">获取列表</button></div>
+      </div>
+      <div class="p-card" style="border-left:4px solid #eab308;">
+        <div style="display:flex;justify-content:space-between;">
+          <span class="p-name">小红书</span>
+          <span class="badge badge-yellow">未配置</span>
+        </div>
+        <div class="p-accts">—</div>
+        <div style="margin-top:8px;"><button class="btn btn-sm btn-outline">配置</button></div>
+      </div>
+      <div class="p-card" style="border-left:4px solid #ef4444;">
+        <div style="display:flex;justify-content:space-between;">
+          <span class="p-name">今日头条</span>
+          <span class="badge badge-blue">未登录</span>
+        </div>
+        <div class="p-accts">0 个账号</div>
+        <div style="margin-top:8px;"><button class="btn btn-sm btn-outline">添加账号</button></div>
+      </div>
+      <div class="p-card" style="border-left:4px solid #06b6d4;">
+        <div style="display:flex;justify-content:space-between;">
+          <span class="p-name">抖音</span>
+          <span class="badge badge-gray">未配置</span>
+        </div>
+        <div class="p-accts">—</div>
+        <div style="margin-top:8px;"><button class="btn btn-sm btn-outline">配置</button></div>
+      </div>
+    </div>
+
+    <!-- Annotations -->
+    <div class="anno-box" style="margin-top:16px;">
+      <div class="anno-tag">🎯 设计说明</div>
+      <div style="font-size:12px;color:#475569;line-height:1.6;">
+        <strong>1. 左色条标识平台</strong> — 每个平台卡片左侧颜色条代表该品牌色，一目了然区分。<br>
+        <strong>2. 状态优先展示</strong> — 右上角状态徽章是用户第一眼应看到的信息（已登录/未登录/未配置）。<br>
+        <strong>3. 统计数字驱使用户行动</strong> — 「3 条新收藏」「12 条待下载」引导用户点击获取列表。<br>
+        <strong>4. 扫描更新按钮</strong> — 一键触发所有平台的增量检测，发现新课和已更新内容。
+      </div>
+    </div>
+  </div>
+</div>
+</div>
+
+<!-- ============================================ -->
+<!-- 页面 2：任务中心 -->
+<!-- ============================================ -->
+<div class="page-section">
+<h2>📋 页面 2：任务中心 <small>TaskCenter — 下载管理与进度查看</small></h2>
+
+<div class="prototype">
+  <div class="nav">
+    <div class="nav-brand">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#38bdf8" stroke-width="2"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M2 8h20"/></svg>
+      Course_Downloader
+    </div>
+    <div class="nav-links">
+      <span class="nav-link">仪表盘</span>
+      <span class="nav-link active">任务中心</span>
+      <span class="nav-link">设置</span>
+      <span class="nav-link">日志</span>
+    </div>
+    <div class="nav-right"><span class="account-badge">👤 当前：默认账号</span></div>
+  </div>
+
+  <div class="content">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+      <h3 style="font-size:16px;">任务中心</h3>
+      <div style="display:flex;gap:8px;">
+        <button class="btn btn-outline btn-sm">⏸ 暂停</button>
+        <button class="btn btn-outline btn-sm">▶ 继续</button>
+        <button class="btn btn-outline btn-sm">🗑 清除已完成</button>
+      </div>
+    </div>
+
+    <!-- Running task -->
+    <div class="section-title">当前下载</div>
+    <div class="progress-comp">
+      <div class="progress-header">
+        <span class="progress-title">📹 第三章 函数的进阶应用</span>
+        <div>
+          <span class="badge badge-blue">腾讯会议</span>
+          <span class="progress-elapsed" style="margin-left:8px;">⏱ 已用 12:35</span>
+        </div>
+      </div>
+      <div class="step-list">
+        <div class="step">
+          <span class="step-icon done">✓</span>
+          <span>下载视频</span>
+          <span class="step-bar"><div class="step-bar-fill" style="width:100%"></div></span>
+          <span style="color:#16a34a;font-size:11px;">完成</span>
+        </div>
+        <div class="step">
+          <span class="step-icon done">✓</span>
+          <span>转码 MP4</span>
+          <span class="step-bar"><div class="step-bar-fill" style="width:100%"></div></span>
+          <span style="color:#16a34a;font-size:11px;">完成</span>
+        </div>
+        <div class="step">
+          <span class="step-icon running">⟳</span>
+          <span>ASR 转写</span>
+          <span class="step-bar"><div class="step-bar-fill" style="width:45%"></div></span>
+          <span style="color:#2563eb;font-size:11px;">45%</span>
+        </div>
+      </div>
+      <div style="margin-top:8px;font-size:12px;color:#64748b;">
+        当前步骤：正在提交 SiliconFlow ASR 转写（第 2 段 / 共 3 段）
+      </div>
+    </div>
+
+    <!-- Filters -->
+    <div class="filter-bar">
+      <input placeholder="🔍 搜索任务标题...">
+      <select style="padding:6px 12px;border:1px solid #e2e8f0;border-radius:6px;font-size:13px;">
+        <option>全部状态</option>
+        <option>运行中</option>
+        <option>已完成</option>
+        <option>失败</option>
+        <option>待处理</option>
+      </select>
+      <select style="padding:6px 12px;border:1px solid #e2e8f0;border-radius:6px;font-size:13px;">
+        <option>全部平台</option>
+      </select>
+      <span style="font-size:12px;color:#64748b;margin-left:auto;">共 24 条任务</span>
+    </div>
+
+    <!-- Task table -->
+    <table class="task-table">
+      <tr>
+        <th style="width:30px"><input type="checkbox"></th>
+        <th>标题</th>
+        <th>平台</th>
+        <th>类型</th>
+        <th>状态</th>
+        <th>子步骤</th>
+        <th>时间</th>
+        <th>操作</th>
+      </tr>
+      <tr>
+        <td><input type="checkbox"></td>
+        <td>第三章 函数的进阶应用</td>
+        <td><span class="badge badge-blue">腾讯会议</span></td>
+        <td>🎬 视频</td>
+        <td><span class="badge badge-blue">运行中</span></td>
+        <td style="font-size:11px;">视频 ✓ / 转码 ✓ / 转写 ⟳</td>
+        <td style="font-size:12px;color:#64748b;">12:35</td>
+        <td><span style="font-size:12px;color:#94a3b8;">—</span></td>
+      </tr>
+      <tr>
+        <td><input type="checkbox"></td>
+        <td>第一章 概述</td>
+        <td><span class="badge badge-green">小鹅通</span></td>
+        <td>🎬 视频</td>
+        <td><span class="badge badge-green">已完成</span></td>
+        <td style="font-size:11px;">视频 ✓ / 转码 ✓ / 转写 ✓</td>
+        <td style="font-size:12px;color:#64748b;">2026-05-14</td>
+        <td><span style="font-size:12px;color:#2563eb;">📂 打开</span></td>
+      </tr>
+      <tr>
+        <td><input type="checkbox"></td>
+        <td>变量与数据类型</td>
+        <td><span class="badge badge-blue">腾讯会议</span></td>
+        <td>🎬 视频</td>
+        <td><span class="badge badge-yellow">部分完成</span></td>
+        <td style="font-size:11px;">视频 ✓ / 转码 ✓ / 转写 ⛔</td>
+        <td style="font-size:12px;color:#64748b;">2026-05-13</td>
+        <td><span style="font-size:12px;color:#d97706;">⟳ 重试</span></td>
+      </tr>
+      <tr>
+        <td><input type="checkbox"></td>
+        <td>我的收藏文章合集</td>
+        <td><span class="badge badge-red">今日头条</span></td>
+        <td>📝 文章</td>
+        <td><span class="badge badge-green">已完成</span></td>
+        <td style="font-size:11px;">文章 ✓ / 图片 ✓</td>
+        <td style="font-size:12px;color:#64748b;">2026-05-12</td>
+        <td><span style="font-size:12px;color:#2563eb;">📂 打开</span></td>
+      </tr>
+      <tr>
+        <td><input type="checkbox"></td>
+        <td>React 入门教程</td>
+        <td><span class="badge badge-purple" style="background:#ede9fe;color:#7c3aed;">B站</span></td>
+        <td>🎬 视频</td>
+        <td><span class="badge badge-red">失败</span></td>
+        <td style="font-size:11px;">视频 ⛔</td>
+        <td style="font-size:12px;color:#64748b;">2026-05-11</td>
+        <td><span style="font-size:12px;color:#dc2626;">⟳ 重试</span></td>
+      </tr>
+    </table>
+
+    <div class="anno-box" style="margin-top:16px;">
+      <div class="anno-tag">🎯 设计说明</div>
+      <div style="font-size:12px;color:#475569;line-height:1.6;">
+        <strong>1. 子步骤可视化</strong> — 每个任务拆分为独立步骤显示进度条，用户清楚知道当前卡在哪一步。<br>
+        <strong>2. 「部分完成」状态</strong> — 视频下完了但 ASR 失败的中间态，提供「重试转写」按钮而非整任务重跑。<br>
+        <strong>3. 批量操作</strong> — 左侧复选框支持多选 + 批量删除/重试/取消。<br>
+        <strong>4. 过滤搜索</strong> — 按状态/平台/关键词快速筛选大量任务。<br>
+        <strong>5. 操作按钮</strong> —「重试」= 针对失败子步骤，「打开」= 打开下载目录查看文件。
+      </div>
+    </div>
+  </div>
+</div>
+</div>
+
+<!-- ============================================ -->
+<!-- 页面 3：设置 -->
+<!-- ============================================ -->
+<div class="page-section">
+<h2>⚙️ 页面 3：设置 <small>Settings — 平台账号与 API Key 管理</small></h2>
+
+<div class="prototype">
+  <div class="nav">
+    <div class="nav-brand">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#38bdf8" stroke-width="2"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M2 8h20"/></svg>
+      Course_Downloader
+    </div>
+    <div class="nav-links">
+      <span class="nav-link">仪表盘</span>
+      <span class="nav-link">任务中心</span>
+      <span class="nav-link active">设置</span>
+      <span class="nav-link">日志</span>
+    </div>
+    <div class="nav-right"><span class="account-badge">👤 当前：默认账号</span></div>
+  </div>
+
+  <div class="content">
+    <h3 style="font-size:16px;margin-bottom:16px;">设置</h3>
+
+    <div class="view-tabs">
+      <span class="view-tab active">平台账号</span>
+      <span class="view-tab">API Key</span>
+      <span class="view-tab">输出目录</span>
+      <span class="view-tab">通用设置</span>
+    </div>
+
+    <div class="settings-grid">
+      <!-- 平台账号管理 -->
+      <div class="settings-card">
+        <h3>🔑 平台账号</h3>
+        <div style="margin-bottom:12px;font-size:13px;color:#475569;">
+          管理各平台的登录账号。每个账号独立保存登录态。
+        </div>
+        <div style="padding:8px 0;border-bottom:1px solid #f1f5f9;display:flex;align-items:center;gap:8px;">
+          <span class="badge badge-blue" style="min-width:60px;">腾讯会议</span>
+          <span>默认账号</span>
+          <span class="badge badge-green" style="margin-left:auto;">已登录</span>
+          <span style="font-size:12px;color:#2563eb;">切换</span>
+          <span style="font-size:12px;color:#dc2626;">删除</span>
+        </div>
+        <div style="padding:8px 0;border-bottom:1px solid #f1f5f9;display:flex;align-items:center;gap:8px;">
+          <span class="badge badge-green" style="min-width:60px;">小鹅通</span>
+          <span>熊子熠</span>
+          <span class="badge badge-blue" style="margin-left:auto;">已添加</span>
+          <span style="font-size:12px;color:#d97706;">登录</span>
+          <span style="font-size:12px;color:#dc2626;">删除</span>
+        </div>
+        <div style="padding:8px 0;display:flex;align-items:center;gap:8px;">
+          <span class="badge badge-purple" style="min-width:60px;background:#ede9fe;color:#7c3aed;">B站</span>
+          <span>账号名称</span>
+          <span class="badge badge-green" style="margin-left:auto;">已登录</span>
+        </div>
+        <button class="btn btn-outline btn-sm" style="margin-top:12px;">+ 添加账号</button>
+      </div>
+
+      <!-- API Key 管理 -->
+      <div class="settings-card">
+        <h3>🔐 API Key</h3>
+        <div style="margin-bottom:12px;font-size:13px;color:#475569;">
+          管理 ASR 语音转写等服务所需的 API Key。
+        </div>
+        <div style="padding:8px 12px;background:#f8fafc;border-radius:6px;margin-bottom:8px;">
+          <div style="display:flex;justify-content:space-between;font-size:13px;">
+            <span><strong>SiliconFlow ASR</strong></span>
+            <span style="color:#64748b;">sk-qvjf...hsrh</span>
+            <span class="badge badge-green">生效中</span>
+          </div>
+          <div style="margin-top:6px;display:flex;gap:6px;">
+            <button class="btn btn-sm btn-outline">测试</button>
+            <button class="btn btn-sm btn-outline">停用</button>
+          </div>
+        </div>
+        <div style="padding:8px 12px;background:#f8fafc;border-radius:6px;margin-bottom:8px;">
+          <div style="display:flex;justify-content:space-between;font-size:13px;">
+            <span><strong>阿里云百炼</strong></span>
+            <span style="color:#64748b;">（未配置）</span>
+            <span class="badge badge-gray">未配置</span>
+          </div>
+        </div>
+        <button class="btn btn-outline btn-sm">+ 添加 Key</button>
+      </div>
+
+      <!-- 输出目录配置 -->
+      <div class="settings-card">
+        <h3>📁 输出目录</h3>
+        <div class="form-group">
+          <label>腾讯会议</label>
+          <input value="./downloads/tencent_meeting/">
+        </div>
+        <div class="form-group">
+          <label>小鹅通</label>
+          <input value="./downloads/xiaoe/">
+        </div>
+        <div class="form-group">
+          <label>B站</label>
+          <input value="./downloads/bilibili/">
+        </div>
+        <button class="btn btn-sm btn-primary" style="margin-top:4px;">保存</button>
+      </div>
+
+      <!-- 通用设置 -->
+      <div class="settings-card">
+        <h3>⚙️ 通用</h3>
+        <div class="checkbox-label" style="margin-bottom:8px;">
+          <input type="checkbox" checked> 启动时自动检查更新
+        </div>
+        <div class="checkbox-label" style="margin-bottom:8px;">
+          <input type="checkbox" checked> 下载完成后自动转写（ASR）
+        </div>
+        <div class="checkbox-label" style="margin-bottom:8px;">
+          <input type="checkbox"> 完成后自动删除原始 TS 文件
+        </div>
+        <div class="form-group" style="margin-top:12px;">
+          <label>最大并发浏览器数</label>
+          <select style="padding:6px 12px;border:1px solid #e2e8f0;border-radius:6px;font-size:13px;">
+            <option>1 个（最省内存）</option>
+            <option selected>2 个（推荐）</option>
+            <option>3 个（内存充足时）</option>
+          </select>
+        </div>
+        <div style="margin-top:8px;font-size:11px;color:#64748b;">
+          磁盘剩余空间：124.5 GB
+        </div>
+      </div>
+    </div>
+
+    <div class="anno-box" style="margin-top:16px;">
+      <div class="anno-tag">🎯 设计说明</div>
+      <div style="font-size:12px;color:#475569;line-height:1.6;">
+        <strong>1. Tab 切换分类</strong> — 设置项用 Tab 分 4 类，避免一个页面太长。<br>
+        <strong>2. API Key 仅显示后 4 位</strong> — 安全性考虑。扩展卡可展开看完整 Key。<br>
+        <strong>3. 测试按钮</strong> — 配置完 Key 后一键验证有效性，避免用到无效 Key 时才发现。<br>
+        <strong>4. 磁盘空间显示</strong> — 实时显示剩余空间，警告 < 1GB 时标记红色。<br>
+        <strong>5. 并发浏览器数限制</strong> — 防止用户同时开太多实例导致内存不足。
+      </div>
+    </div>
+  </div>
+</div>
+</div>
+
+<!-- ============================================ -->
+<!-- 页面 4：扫描更新弹窗 -->
+<!-- ============================================ -->
+<div class="page-section">
+<h2>🔄 交互流程：扫描更新弹窗 <small>用户点「扫描更新」后的反馈</small></h2>
+
+<div class="prototype" style="max-width:600px;margin:0 auto;">
+  <div style="padding:32px;">
+    <div style="text-align:center;margin-bottom:20px;">
+      <span style="font-size:32px;">📋</span>
+      <h3 style="margin-top:8px;">扫描完成</h3>
+      <p style="font-size:13px;color:#64748b;">已完成所有平台的增量检测</p>
+    </div>
+    <div style="background:#f8fafc;border-radius:8px;padding:16px;margin-bottom:16px;">
+      <div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #e2e8f0;">
+        <span>🆕 新增课程</span>
+        <span><strong>3</strong> 门</span>
+      </div>
+      <div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #e2e8f0;">
+        <span>🔄 已更新</span>
+        <span><strong>2</strong> 门</span>
+      </div>
+      <div style="display:flex;justify-content:space-between;padding:6px 0;">
+        <span>✅ 已下载无变化</span>
+        <span><strong>19</strong> 门</span>
+      </div>
+    </div>
+    <div style="color:#64748b;font-size:12px;margin-bottom:16px;">
+      新增课程将自动加入下载队列。已更新的课程将重新下载覆盖旧文件。
+    </div>
+    <div style="display:flex;gap:8px;justify-content:center;">
+      <button class="btn btn-primary">确认并开始下载</button>
+      <button class="btn btn-outline">稍后再说</button>
+    </div>
+  </div>
+
+  <div class="anno-box" style="margin:0 16px 16px;">
+    <div class="anno-tag">🎯 交互说明</div>
+    <div style="font-size:12px;color:#475569;line-height:1.6;">
+      <strong>用户触发「扫描更新」后的反馈闭环：</strong><br>
+      点击 → 弹窗显示「正在扫描...」加载态 → 完成后显示本次扫描结果（新增/更新/跳过）<br>
+      用户确认 → 后台自动加入下载队列 → WebSocket 推送进度<br>
+      整个过程无需手动勾选每条课程。
+    </div>
+  </div>
+</div>
+</div>
+
+<!-- ============================================ -->
+<!-- 交互流程总览 -->
+<!-- ============================================ -->
+<div class="page-section">
+<h2>🔄 用户操作全流程 <small>关键交互链路</small></h2>
+
+<div style="background:white;border-radius:12px;border:1px solid #e2e8f0;padding:24px;">
+
+<div style="display:flex;gap:12px;align-items:flex-start;overflow-x:auto;padding-bottom:16px;">
+
+  <div style="min-width:160px;text-align:center;padding:12px;border:1px solid #e2e8f0;border-radius:8px;">
+    <div style="font-size:24px;">🏠</div>
+    <div style="font-size:13px;font-weight:600;margin:6px 0;">仪表盘</div>
+    <div style="font-size:11px;color:#64748b;">查看平台状态</div>
+  </div>
+  <div style="display:flex;align-items:center;color:#94a3b8;font-size:20px;">→</div>
+
+  <div style="min-width:160px;text-align:center;padding:12px;border:1px solid #e2e8f0;border-radius:8px;">
+    <div style="font-size:24px;">🔄</div>
+    <div style="font-size:13px;font-weight:600;margin:6px 0;">扫描更新</div>
+    <div style="font-size:11px;color:#64748b;">检测新课和更新</div>
+  </div>
+  <div style="display:flex;align-items:center;color:#94a3b8;font-size:20px;">→</div>
+
+  <div style="min-width:160px;text-align:center;padding:12px;border:1px solid #e2e8f0;border-radius:8px;">
+    <div style="font-size:24px;">📋</div>
+    <div style="font-size:13px;font-weight:600;margin:6px 0;">确认变更</div>
+    <div style="font-size:11px;color:#64748b;">弹窗展示摘要</div>
+  </div>
+  <div style="display:flex;align-items:center;color:#94a3b8;font-size:20px;">→</div>
+
+  <div style="min-width:160px;text-align:center;padding:12px;border:1px solid #e2e8f0;border-radius:8px;">
+    <div style="font-size:24px;">⏬</div>
+    <div style="font-size:13px;font-weight:600;margin:6px 0;">自动下载</div>
+    <div style="font-size:11px;color:#64748b;">加入队列开始处理</div>
+  </div>
+  <div style="display:flex;align-items:center;color:#94a3b8;font-size:20px;">→</div>
+
+  <div style="min-width:160px;text-align:center;padding:12px;border:1px solid #e2e8f0;border-radius:8px;">
+    <div style="font-size:24px;">📊</div>
+    <div style="font-size:13px;font-weight:600;margin:6px 0;">实时进度</div>
+    <div style="font-size:11px;color:#64748b;">分步骤推送状态</div>
+  </div>
+  <div style="display:flex;align-items:center;color:#94a3b8;font-size:20px;">→</div>
+
+  <div style="min-width:160px;text-align:center;padding:12px;border:1px solid #e2e8f0;border-radius:8px;">
+    <div style="font-size:24px;">✅</div>
+    <div style="font-size:13px;font-weight:600;margin:6px 0;">完成</div>
+    <div style="font-size:11px;color:#64748b;">文件就绪可查看</div>
+  </div>
+
+</div>
+
+<div class="anno-box" style="margin-top:16px;">
+  <div class="anno-tag">🎯 交互链路说明</div>
+  <div style="font-size:12px;color:#475569;line-height:1.6;">
+    <strong>全流程闭环：</strong><br>
+    仪表盘概览 → 一键扫描 → 确认变更摘要 → 后台自动排队下载 → WebSocket 分步骤实时推送 → 完成可查阅<br>
+    <strong>用户只需操作：</strong>「扫描更新」+「确认」两步。其余全部自动化。<br>
+    <strong>异常处理：</strong>失败任务自动重试 3 次，仍失败标记后提供「重试」按钮，无需用户全程关注。
+  </div>
+</div>
+
+</div>
+</div>
+
+</div>
+</body>
+</html>
