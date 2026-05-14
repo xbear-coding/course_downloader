@@ -12,7 +12,7 @@ from app.services.browser_manager import BrowserManager
 
 logger = logging.getLogger(__name__)
 
-RECORDING_LIST_URL = "https://meeting.tencent.com/user-center/recordings"
+RECORDING_LIST_URL = "https://meeting.tencent.com/user-center/meeting-record"
 
 
 class TencentMeetingPlugin(BasePlatform, VideoCapable):
@@ -31,31 +31,47 @@ class TencentMeetingPlugin(BasePlatform, VideoCapable):
     def platform(self) -> str:
         return "tencent_meeting"
 
+    async def _check_logged_in(self, page) -> bool:
+        """通过多种方式检测是否已登录"""
+        # 方式 1: URL 检测（适用于跳转到非登录页面）
+        url = page.url
+        if "login" not in url and "passport" not in url:
+            return True
+        # 方式 2: DOM 检测（腾讯会议 SPA 不跳转 URL，但 DOM 会变）
+        try:
+            # 登录后页面上会有用户头像/信息元素
+            user_els = await page.query_selector_all(
+                '[class*="avatar"], [class*="Avatar"], '
+                '[class*="user-info"], [class*="userInfo"], '
+                '[class*="login-status"], button:has-text("退出"), '
+                '[class*="header-user"], [class*="userAvatar"]'
+            )
+            if user_els:
+                return True
+            # 检查是否有"退出登录"文本，登录后才出现
+            body_text = await page.inner_text("body")
+            if "退出登录" in body_text or "退出" in body_text:
+                return True
+        except Exception:
+            pass
+        return False
+
     async def login(self, account_id: int) -> LoginResult:
         try:
             pb = await self.browser_mgr.get_browser(self.platform, headless=False)
             page = await pb.new_page()
             await page.goto("https://meeting.tencent.com/login/", wait_until="domcontentloaded")
+            await asyncio.sleep(2)
 
-            # 检测是否已有登录态
-            current = page.url
-            if "login" not in current and "passport" not in current:
+            # 检测是否已有登录态（Chrome Profile 持久化）
+            if await self._check_logged_in(page):
                 return LoginResult(success=True)
 
             # 等待用户扫码（最长 180 秒）
             for _ in range(180):
                 await asyncio.sleep(1)
-                current = page.url
-                if "login" not in current and "passport" not in current:
+                if await self._check_logged_in(page):
                     return LoginResult(success=True)
-
-                # 检查页面是否有"登录成功"或跳转迹象
-                try:
-                    title = await page.title()
-                    if "用户中心" in title or "录制" in title:
-                        return LoginResult(success=True)
-                except Exception:
-                    pass
 
             return LoginResult(success=False, error_code="TIMEOUT", error_message="扫码超时")
         except Exception as e:
@@ -70,82 +86,102 @@ class TencentMeetingPlugin(BasePlatform, VideoCapable):
             if page_token:
                 url = f"{RECORDING_LIST_URL}?page={page_token}"
 
-            await page.goto(url, wait_until="networkidle")
-            await asyncio.sleep(3)  # 等待列表渲染
+            try:
+                await page.goto(url, wait_until="domcontentloaded", timeout=15000)
+            except Exception:
+                logger.warning("[tencent_meeting] 录制列表页加载超时，尝试继续解析")
+            await asyncio.sleep(5)
 
             items = []
-            # 尝试多种选择器匹配录制列表
-            selectors = [
-                ".recording-list-item",
-                ".record-item",
-                "[class*='recording']",
-                "[class*='recordItem']",
-                "tr[class*='record']",
-                ".meeting-list-item",
-            ]
 
-            rows = []
-            for sel in selectors:
-                rows = await page.query_selector_all(sel)
-                if rows:
-                    logger.info(f"[tencent_meeting] 使用选择器 {sel} 找到 {len(rows)} 条")
-                    break
+            # 方案 1: 通过 data table body 中的 tr 查找
+            rows = await page.query_selector_all(".met-table__body tr, table[class*=table] tbody tr, tr[class*=record]")
+            if not rows:
+                # 方案 2: 通过纯文本查找录制条目
+                rows = await page.query_selector_all("table tbody tr, tr[data-row]")
+
+            if rows and len(rows) <= 1:
+                rows = []  # 只有表头或空
 
             if not rows:
-                # 尝试直接从表格解析
-                rows = await page.query_selector_all("table tbody tr")
-                if not rows:
-                    logger.warning("[tencent_meeting] 未找到录制列表条目")
-                    return FetchResult(items=[], partial=True)
+                # 方案 3: 通过 JS 直接提取结构化的录制数据
+                data = await page.evaluate("""() => {
+                    const results = [];
+                    // 找到包含录制信息的行
+                    const rows = document.querySelectorAll('tr');
+                    for (const row of rows) {
+                        const cells = row.querySelectorAll('td');
+                        if (cells.length < 2) continue;
+                        const text = row.textContent.trim();
+                        // 跳过表头行
+                        if (text.includes('文件') && text.includes('录制时间') && text.includes('文件大小')) continue;
+                        if (text.includes('会议') || text.includes('录制')) {
+                            const links = row.querySelectorAll('a');
+                            const titleEl = row.querySelector('[class*=titleContent], [class*=titleBox]');
+                            const title = titleEl ? titleEl.textContent.trim() : cells[0].textContent.trim();
+                            const firstLink = links[0] ? links[0].getAttribute('href') || '' : '';
+                            results.push({ title, link: firstLink, text: text.slice(0, 200) });
+                        }
+                    }
+                    return results;
+                }""")
+                for d in data:
+                    item_id = d.get('link', '')
+                    m = re.search(r'/(\d+)', item_id)
+                    if m:
+                        item_id = m.group(1)
+                    if not item_id:
+                        import hashlib
+                        item_id = hashlib.md5(d['title'].encode()).hexdigest()[:12]
+                    items.append(ContentItem(
+                        platform="tencent_meeting",
+                        item_id=item_id,
+                        title=d['title'][:100],
+                        content_type="video",
+                        url=d['link'] if d['link'].startswith("http") else f"https://meeting.tencent.com{d['link']}",
+                    ))
 
-            for row in rows:
-                try:
-                    title_el = await row.query_selector("a, .title, [class*='title'], td:first-child")
-                    title = await title_el.inner_text() if title_el else "未知标题"
-                    title = title.strip()
+            if rows:
+                for row in rows:
+                    try:
+                        # 尝试通过 JS 提取行数据
+                        row_data = await page.evaluate("""(row) => {
+                            const titleEl = row.querySelector('[class*=titleContent]');
+                            const linkEl = row.querySelector('a');
+                            return {
+                                title: titleEl ? titleEl.textContent.trim() : (row.querySelector('td') ? row.querySelector('td').textContent.trim() : ''),
+                                link: linkEl ? linkEl.getAttribute('href') || '' : ''
+                            };
+                        }""", row)
+                    except Exception:
+                        continue
 
-                    # 提取链接
-                    link = ""
-                    if title_el:
-                        link = await title_el.get_attribute("href") or ""
+                    title = row_data.get('title', '').strip()
+                    if not title or title.startswith('文件'):
+                        continue
 
-                    # 提取录制 ID
+                    link = row_data.get('link', '')
                     item_id = ""
-                    if link:
-                        m = re.search(r'/recording/(\d+)', link)
-                        if m:
-                            item_id = m.group(1)
-
+                    m = re.search(r'/(\d+)', link)
+                    if m:
+                        item_id = m.group(1)
                     if not item_id:
                         import hashlib
                         item_id = hashlib.md5(title.encode()).hexdigest()[:12]
 
-                    content_type = "video"
                     items.append(ContentItem(
                         platform="tencent_meeting",
                         item_id=item_id,
-                        title=title,
-                        content_type=content_type,
+                        title=title[:100],
+                        content_type="video",
                         url=link if link.startswith("http") else f"https://meeting.tencent.com{link}",
                     ))
-                except Exception as e:
-                    logger.warning(f"[tencent_meeting] 解析条目失败: {e}")
-                    continue
 
-            # 检测下一页
-            next_token = None
-            try:
-                next_btn = await page.query_selector(".next-page, [class*='next'], .pagination-next, a[rel='next']")
-                if next_btn:
-                    disabled = await next_btn.get_attribute("disabled")
-                    cls = await next_btn.get_attribute("class") or ""
-                    if not disabled and "disabled" not in cls:
-                        current_page = int(page_token or 1)
-                        next_token = str(current_page + 1)
-            except Exception:
-                pass
+            if not items:
+                logger.warning("[tencent_meeting] 未找到录制列表条目")
+                return FetchResult(items=[], partial=True)
 
-            return FetchResult(items=items, next_token=next_token, total_estimated=len(items))
+            return FetchResult(items=items, total_estimated=len(items))
 
         except Exception as e:
             logger.error(f"[tencent_meeting] 列表获取失败: {e}")
@@ -160,7 +196,10 @@ class TencentMeetingPlugin(BasePlatform, VideoCapable):
         page = await pb.new_page()
 
         try:
-            await page.goto(item.url, wait_until="networkidle")
+            try:
+                await page.goto(item.url, wait_until="domcontentloaded", timeout=15000)
+            except Exception:
+                logger.warning("[tencent_meeting] 详情页加载超时，尝试继续解析")
             await asyncio.sleep(3)
 
             # 寻找导出/下载按钮
