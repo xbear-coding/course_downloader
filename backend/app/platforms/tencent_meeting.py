@@ -199,49 +199,24 @@ class TencentMeetingPlugin(BasePlatform, VideoCapable):
             await page.goto(RECORDING_LIST_URL, wait_until="domcontentloaded", timeout=15000)
             await asyncio.sleep(5)
 
-            target_row = await page.evaluate("""(title) => {
-                const rows = document.querySelectorAll('tr');
-                for (const row of rows) {
-                    if (row.textContent.includes(title)) {
-                        const moreIcon = row.querySelector('[class*=more--outlined]');
-                        if (moreIcon) {
-                            moreIcon.click();
-                            return 'clicked';
-                        }
-                    }
-                }
-                return 'not found';
-            }""", item.title)
+            # 使用 Playwright 原生 click（JS element.click() 触不了 React 事件）
+            more_icons = await page.query_selector_all('[class*=more--outlined]')
+            if not more_icons:
+                return DownloadResult(
+                    success=False, error_code="NO_MORE_BUTTON",
+                    error_message="未找到更多按钮",
+                )
+            await more_icons[-1].click()
 
-            if target_row == 'not found':
-                more_icon = await page.query_selector('[class*=more--outlined]')
-                if not more_icon:
-                    return DownloadResult(
-                        success=False, error_code="NO_MORE_BUTTON",
-                        error_message="未找到更多按钮",
-                    )
-                await more_icon.click()
+            await asyncio.sleep(1.5)
 
-            await asyncio.sleep(1)
-
-            dl_clicked = await page.evaluate("""() => {
-                const popup = document.querySelector('[class*=met-list--option]');
-                if (!popup) return false;
-                const items = popup.querySelectorAll('li');
-                for (const item of items) {
-                    if (item.textContent.trim() === '下载') {
-                        item.click();
-                        return true;
-                    }
-                }
-                return false;
-            }""")
-
-            if not dl_clicked:
+            dl_option = await page.query_selector('[class*=met-list--option] li:first-child')
+            if not dl_option:
                 return DownloadResult(
                     success=False, error_code="NO_DOWNLOAD_OPTION",
                     error_message="未找到下载选项",
                 )
+            await dl_option.click()
 
             await asyncio.sleep(2)
 
