@@ -199,19 +199,19 @@ class TencentMeetingPlugin(BasePlatform, VideoCapable):
             await page.goto(RECORDING_LIST_URL, wait_until="domcontentloaded", timeout=15000)
             await asyncio.sleep(5)
 
-            target_row = await page.evaluate(f"""(title) => {{
+            target_row = await page.evaluate("""(title) => {
                 const rows = document.querySelectorAll('tr');
-                for (const row of rows) {{
-                    if (row.textContent.includes(title)) {{
+                for (const row of rows) {
+                    if (row.textContent.includes(title)) {
                         const moreIcon = row.querySelector('[class*=more--outlined]');
-                        if (moreIcon) {{
+                        if (moreIcon) {
                             moreIcon.click();
                             return 'clicked';
-                        }}
-                    }}
-                }}
+                        }
+                    }
+                }
                 return 'not found';
-            }}""", item.title)
+            }""", item.title)
 
             if target_row == 'not found':
                 more_icon = await page.query_selector('[class*=more--outlined]')
@@ -225,11 +225,12 @@ class TencentMeetingPlugin(BasePlatform, VideoCapable):
             await asyncio.sleep(1)
 
             dl_clicked = await page.evaluate("""() => {
-                const items = document.querySelectorAll('li, button, a, span, div');
-                for (const el of items) {
-                    const t = el.textContent.trim();
-                    if (t === '下载' || t === '下载视频') {
-                        el.click();
+                const popup = document.querySelector('[class*=met-list--option]');
+                if (!popup) return false;
+                const items = popup.querySelectorAll('li');
+                for (const item of items) {
+                    if (item.textContent.trim() === '下载') {
+                        item.click();
                         return true;
                     }
                 }
@@ -242,24 +243,10 @@ class TencentMeetingPlugin(BasePlatform, VideoCapable):
                     error_message="未找到下载选项",
                 )
 
-            await asyncio.sleep(3)
-
-            modal_dl = await page.evaluate("""() => {
-                const btns = document.querySelectorAll('button, span[class*=btn], div[role=button]');
-                for (const btn of btns) {
-                    const t = btn.textContent.trim();
-                    if (t === '下载' || t === '确认下载' || t === '确定') {
-                        btn.click();
-                        return 'clicked: ' + t;
-                    }
-                }
-                return 'no confirm modal';
-            }""")
-            logger.info(f"[tencent_meeting] 下载确认对话框: {modal_dl}")
             await asyncio.sleep(2)
 
             try:
-                async with page.expect_download(timeout=30000) as download_info:
+                async with page.expect_download(timeout=120000) as download_info:
                     pass
                 download = await download_info.value
                 await download.save_as(str(output))
@@ -267,8 +254,12 @@ class TencentMeetingPlugin(BasePlatform, VideoCapable):
                     success=True, file_path=output,
                     file_type=output.suffix.lstrip(".") or "mp4",
                 )
-            except Exception:
-                pass
+            except Exception as e:
+                logger.warning(f"[tencent_meeting] 下载未捕获: {e}")
+                return DownloadResult(
+                    success=False, error_code="DOWNLOAD_TIMEOUT",
+                    error_message="下载超时或未触发",
+                )
 
             # 尝试拦截 video 标签的 src
             video_src = None
