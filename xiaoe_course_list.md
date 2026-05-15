@@ -1,0 +1,383 @@
+# 小鹅通课程列表
+
+> 共 189 课
+
+1. 1、26年--考试介绍、学习方法
+                        上次学到
+   URL: https://app5vfffdhz8371.pc.xiaoe-tech.com
+2. 1、26年--考试介绍、学习方法
+   URL: https://app5vfffdhz8371.pc.xiaoe-tech.com
+3. 2、26年--论文基本介绍
+   URL: https://app5vfffdhz8371.pc.xiaoe-tech.com
+4. 3、26年--案例分析基本介绍
+   URL: https://app5vfffdhz8371.pc.xiaoe-tech.com
+5. 4、26年--各章节题型介绍及学习建议
+   URL: https://app5vfffdhz8371.pc.xiaoe-tech.com
+6. 5、26年--招标投标法、政府采购法
+   URL: https://app5vfffdhz8371.pc.xiaoe-tech.com
+7. 6、26年--实施条例、著作权法
+   URL: https://app5vfffdhz8371.pc.xiaoe-tech.com
+8. 7、26年--信息化发展1
+   URL: https://app5vfffdhz8371.pc.xiaoe-tech.com
+9. 8、26年--信息化发展2
+   URL: https://app5vfffdhz8371.pc.xiaoe-tech.com
+10. 9、26年--信息技术发展1
+   URL: https://app5vfffdhz8371.pc.xiaoe-tech.com
+11. 10、26年--信息技术发展2
+   URL: https://app5vfffdhz8371.pc.xiaoe-tech.com
+12. 11、26年--信息系统治理
+   URL: https://app5vfffdhz8371.pc.xiaoe-tech.com
+13. 12、26年--信息系统管理
+   URL: https://app5vfffdhz8371.pc.xiaoe-tech.com
+14. 13、26年--信息系统工程1
+   URL: https://app5vfffdhz8371.pc.xiaoe-tech.com
+15. 14、26年--信息系统工程2
+   URL: https://app5vfffdhz8371.pc.xiaoe-tech.com
+16. 15、26年--信息系统工程3
+   URL: https://app5vfffdhz8371.pc.xiaoe-tech.com
+17. 16、26年--项目管理概论1
+   URL: https://app5vfffdhz8371.pc.xiaoe-tech.com
+18. 17、26年--项目管理概论2
+   URL: https://app5vfffdhz8371.pc.xiaoe-tech.com
+19. 18、26年--立项管理
+   URL: https://app5vfffdhz8371.pc.xiaoe-tech.com
+20. 19、26年--10大管理基本介绍
+   URL: https://app5vfffdhz8371.pc.xiaoe-tech.com
+21. 20、26年--工具和技术汇总讲解（可先听1遍，也可10大管理学完再听）
+   URL: https://app5vfffdhz8371.pc.xiaoe-tech.com
+22. 21、26年--整合管理1
+   URL: https://app5vfffdhz8371.pc.xiaoe-tech.com
+23. 22、26年--整合管理2
+   URL: https://app5vfffdhz8371.pc.xiaoe-tech.com
+24. 23、26年--范围管理1
+   URL: https://app5vfffdhz8371.pc.xiaoe-tech.com
+25. 24、26年--范围管理2
+   URL: https://app5vfffdhz8371.pc.xiaoe-tech.com
+26. 25、26年--进度管理1
+   URL: https://app5vfffdhz8371.pc.xiaoe-tech.com
+27. 26、26年--进度管理2
+   URL: https://app5vfffdhz8371.pc.xiaoe-tech.com
+28. 27、26年--成本管理
+   URL: https://app5vfffdhz8371.pc.xiaoe-tech.com
+29. 28、26年--质量管理
+   URL: https://app5vfffdhz8371.pc.xiaoe-tech.com
+30. 29、26年--资源管理1
+   URL: https://app5vfffdhz8371.pc.xiaoe-tech.com
+31. 30、26年--资源管理2
+   URL: https://app5vfffdhz8371.pc.xiaoe-tech.com
+32. 31、26年--沟通管理
+   URL: https://app5vfffdhz8371.pc.xiaoe-tech.com
+33. 32、26年--风险管理1
+   URL: https://app5vfffdhz8371.pc.xiaoe-tech.com
+34. 33、26年--风险管理2
+   URL: https://app5vfffdhz8371.pc.xiaoe-tech.com
+35. 34、26年--采购管理1
+   URL: https://app5vfffdhz8371.pc.xiaoe-tech.com
+36. 35、26年--采购管理2
+   URL: https://app5vfffdhz8371.pc.xiaoe-tech.com
+37. 36、26年--干系人管理
+   URL: https://app5vfffdhz8371.pc.xiaoe-tech.com
+38. 37、26年--绩效域1
+   URL: https://app5vfffdhz8371.pc.xiaoe-tech.com
+39. 38、26年--绩效域2
+   URL: https://app5vfffdhz8371.pc.xiaoe-tech.com
+40. 39、26年--绩效域3
+   URL: https://app5vfffdhz8371.pc.xiaoe-tech.com
+41. 40、26年--配置与变更管理1
+   URL: https://app5vfffdhz8371.pc.xiaoe-tech.com
+42. 41、26年--配置与变更管理2
+   URL: https://app5vfffdhz8371.pc.xiaoe-tech.com
+43. 42、26年--高级项目管理
+   URL: https://app5vfffdhz8371.pc.xiaoe-tech.com
+44. 43、26年--项目管理科学基础1
+   URL: https://app5vfffdhz8371.pc.xiaoe-tech.com
+45. 44、26年--项目管理科学基础2
+   URL: https://app5vfffdhz8371.pc.xiaoe-tech.com
+46. 45、26年--项目管理科学基础3
+   URL: https://app5vfffdhz8371.pc.xiaoe-tech.com
+47. 46、26年--组织通用治理
+   URL: https://app5vfffdhz8371.pc.xiaoe-tech.com
+48. 47、26年--组织通用管理
+   URL: https://app5vfffdhz8371.pc.xiaoe-tech.com
+49. 48、26年--法律法规与标准规范
+   URL: https://app5vfffdhz8371.pc.xiaoe-tech.com
+50. 49、26年--计算题1（零散的小计算题）
+   URL: https://app5vfffdhz8371.pc.xiaoe-tech.com
+51. 50、26年--计算题2（进度类）
+   URL: https://app5vfffdhz8371.pc.xiaoe-tech.com
+52. 51、26年--计算题3（成本类）
+   URL: https://app5vfffdhz8371.pc.xiaoe-tech.com
+53. 52、26年--选择题做题建议
+   URL: https://app5vfffdhz8371.pc.xiaoe-tech.com
+54. 53、26年--计算题喜欢出错的地方
+   URL: https://app5vfffdhz8371.pc.xiaoe-tech.com
+55. 54、26年--计算题4（题目书P34-P67的几个题）
+   URL: https://app5vfffdhz8371.pc.xiaoe-tech.com
+56. 55、26年--计算题5（题目书P77-P87页的几个题）
+   URL: https://app5vfffdhz8371.pc.xiaoe-tech.com
+57. 56、26年--计算题6（题目书P106-P140页的几个题）
+   URL: https://app5vfffdhz8371.pc.xiaoe-tech.com
+58. 57、26年--计算题7（题目书P140-P150页的几个题）
+   URL: https://app5vfffdhz8371.pc.xiaoe-tech.com
+59. 58、26年--计算题8（题目书P150-P160页的几个题）
+   URL: https://app5vfffdhz8371.pc.xiaoe-tech.com
+60. 59、26年--计算题9（题目书P160-P169页的几个题）
+   URL: https://app5vfffdhz8371.pc.xiaoe-tech.com
+61. 60、26年--计算题10（题目书P169-173页的几个题）
+   URL: https://app5vfffdhz8371.pc.xiaoe-tech.com
+62. 61、26年--计算题11（题目书P173-179页的几个题）
+   URL: https://app5vfffdhz8371.pc.xiaoe-tech.com
+63. 62、26年--信息化发展题目解析
+   URL: https://app5vfffdhz8371.pc.xiaoe-tech.com
+64. 63、26年--信息技术发展题目解析
+   URL: https://app5vfffdhz8371.pc.xiaoe-tech.com
+65. 64、26年--信息系统治理题目解析
+   URL: https://app5vfffdhz8371.pc.xiaoe-tech.com
+66. 65、26年--信息系统管理题目解析
+   URL: https://app5vfffdhz8371.pc.xiaoe-tech.com
+67. 66、26年--信息系统工程题目解析
+   URL: https://app5vfffdhz8371.pc.xiaoe-tech.com
+68. 67、26年--项目管理概论题目解析
+   URL: https://app5vfffdhz8371.pc.xiaoe-tech.com
+69. 68、26年--立项管理题目解析
+   URL: https://app5vfffdhz8371.pc.xiaoe-tech.com
+70. 69、26年--整合管理题目解析
+   URL: https://app5vfffdhz8371.pc.xiaoe-tech.com
+71. 70、26年--范围管理题目解析
+   URL: https://app5vfffdhz8371.pc.xiaoe-tech.com
+72. 71、26年--进度管理题目解析
+   URL: https://app5vfffdhz8371.pc.xiaoe-tech.com
+73. 72、26年--成本管理题目解析
+   URL: https://app5vfffdhz8371.pc.xiaoe-tech.com
+74. 73、26年--质量管理题目解析
+   URL: https://app5vfffdhz8371.pc.xiaoe-tech.com
+75. 74、26年--资源管理题目解析
+   URL: https://app5vfffdhz8371.pc.xiaoe-tech.com
+76. 75、26年--沟通管理题目解析
+   URL: https://app5vfffdhz8371.pc.xiaoe-tech.com
+77. 76、26年--风险管理题目解析
+   URL: https://app5vfffdhz8371.pc.xiaoe-tech.com
+78. 77、26年--采购管理题目解析
+   URL: https://app5vfffdhz8371.pc.xiaoe-tech.com
+79. 78、26年--干系人管理题目解析
+   URL: https://app5vfffdhz8371.pc.xiaoe-tech.com
+80. 79、26年--项目绩效域题目解析
+   URL: https://app5vfffdhz8371.pc.xiaoe-tech.com
+81. 80、26年--配置与变更管理题目解析
+   URL: https://app5vfffdhz8371.pc.xiaoe-tech.com
+82. 81、26年--高级项目管理题目解析
+   URL: https://app5vfffdhz8371.pc.xiaoe-tech.com
+83. 82、26年--项目管理科学基础题目解析1
+   URL: https://app5vfffdhz8371.pc.xiaoe-tech.com
+84. 83、26年--项目管理科学基础题目解析2
+   URL: https://app5vfffdhz8371.pc.xiaoe-tech.com
+85. 84、26年--组织通用治理题目解析
+   URL: https://app5vfffdhz8371.pc.xiaoe-tech.com
+86. 85、26年--组织通用管理题目解析
+   URL: https://app5vfffdhz8371.pc.xiaoe-tech.com
+87. 86、26年--法律法规与标准规范题目解析
+   URL: https://app5vfffdhz8371.pc.xiaoe-tech.com
+88. 87、26年--案例分析默写相关内容1
+   URL: https://app5vfffdhz8371.pc.xiaoe-tech.com
+89. 88、26年--案例分析默写相关内容2
+   URL: https://app5vfffdhz8371.pc.xiaoe-tech.com
+90. 89、26年--案例分析默写相关内容3
+   URL: https://app5vfffdhz8371.pc.xiaoe-tech.com
+91. 90、26年--案例万金油96条
+   URL: https://app5vfffdhz8371.pc.xiaoe-tech.com
+92. 91、26年--案例背景常见错误1
+   URL: https://app5vfffdhz8371.pc.xiaoe-tech.com
+93. 92、26年--案例背景常见错误2
+   URL: https://app5vfffdhz8371.pc.xiaoe-tech.com
+94. 93、26年--案例背景常见错误3
+   URL: https://app5vfffdhz8371.pc.xiaoe-tech.com
+95. 94、26年--案例背景常见错误4
+   URL: https://app5vfffdhz8371.pc.xiaoe-tech.com
+96. 95、26年--案例背景常见错误5
+   URL: https://app5vfffdhz8371.pc.xiaoe-tech.com
+97. 96、26年--案例背景常见错误6
+   URL: https://app5vfffdhz8371.pc.xiaoe-tech.com
+98. 97、26年--案例分析各领域错误汇总
+   URL: https://app5vfffdhz8371.pc.xiaoe-tech.com
+99. 98、26年--案例分析找错4个角度
+   URL: https://app5vfffdhz8371.pc.xiaoe-tech.com
+100. 99、26年--怎样写案例找错的答案？
+   URL: https://app5vfffdhz8371.pc.xiaoe-tech.com
+101. 100、26年--绩效域案例可能错误的地方
+   URL: https://app5vfffdhz8371.pc.xiaoe-tech.com
+102. 101、26年--输入、输出、工具和技术的一些规律
+   URL: https://app5vfffdhz8371.pc.xiaoe-tech.com
+103. 102、26年--5级分类汇总
+   URL: https://app5vfffdhz8371.pc.xiaoe-tech.com
+104. 103、26年--2025年案例真题解析
+   URL: https://app5vfffdhz8371.pc.xiaoe-tech.com
+105. 104、26年--2024年案例真题解析
+   URL: https://app5vfffdhz8371.pc.xiaoe-tech.com
+106. 105、26年--2023年11月案例真题解析
+   URL: https://app5vfffdhz8371.pc.xiaoe-tech.com
+107. 106、26年--2023年5月案例真题解析
+   URL: https://app5vfffdhz8371.pc.xiaoe-tech.com
+108. 107、26年--2022年案例真题解析
+   URL: https://app5vfffdhz8371.pc.xiaoe-tech.com
+109. 108、26年--2021年案例真题解析
+   URL: https://app5vfffdhz8371.pc.xiaoe-tech.com
+110. 109、26年--2020年案例真题解析
+   URL: https://app5vfffdhz8371.pc.xiaoe-tech.com
+111. 110、26年--2019年案例真题解析
+   URL: https://app5vfffdhz8371.pc.xiaoe-tech.com
+112. 111、26年--2018年案例真题解析
+   URL: https://app5vfffdhz8371.pc.xiaoe-tech.com
+113. 112、26年--2017年案例真题解析
+   URL: https://app5vfffdhz8371.pc.xiaoe-tech.com
+114. 113、26年--2016年案例真题解析
+   URL: https://app5vfffdhz8371.pc.xiaoe-tech.com
+115. 114、26年--2015年案例真题解析
+   URL: https://app5vfffdhz8371.pc.xiaoe-tech.com
+116. 115、26年--2014年案例真题解析
+   URL: https://app5vfffdhz8371.pc.xiaoe-tech.com
+117. 116、26年--关于论文写作的几句真心话
+   URL: https://app5vfffdhz8371.pc.xiaoe-tech.com
+118. 117、26年--论文特别注意的地方
+   URL: https://app5vfffdhz8371.pc.xiaoe-tech.com
+119. 118、26年--宏观角度说说10大管理的关系
+   URL: https://app5vfffdhz8371.pc.xiaoe-tech.com
+120. 119、26年--微观角度说说10大管理的关系
+   URL: https://app5vfffdhz8371.pc.xiaoe-tech.com
+121. 120、26年--甲方在项目中经常出现的问题
+   URL: https://app5vfffdhz8371.pc.xiaoe-tech.com
+122. 121、26年-49个过程、定义以及可以怎么写论文1
+   URL: https://app5vfffdhz8371.pc.xiaoe-tech.com
+123. 122、26年-49个过程、定义以及可以怎么写论文2
+   URL: https://app5vfffdhz8371.pc.xiaoe-tech.com
+124. 123、26年--10大管理经验教训心得体会
+   URL: https://app5vfffdhz8371.pc.xiaoe-tech.com
+125. 124、26年--论文中涉及到的图表1
+   URL: https://app5vfffdhz8371.pc.xiaoe-tech.com
+126. 125、26年--论文中涉及到的图表2
+   URL: https://app5vfffdhz8371.pc.xiaoe-tech.com
+127. 126、26年--立项管理怎么写论文
+   URL: https://app5vfffdhz8371.pc.xiaoe-tech.com
+128. 127、26年--整合管理论文写法讲解
+   URL: https://app5vfffdhz8371.pc.xiaoe-tech.com
+129. 128、26年--范围管理论文写法讲解
+   URL: https://app5vfffdhz8371.pc.xiaoe-tech.com
+130. 129、26年--进度管理论文写法讲解
+   URL: https://app5vfffdhz8371.pc.xiaoe-tech.com
+131. 130、26年--成本管理论文写法讲解
+   URL: https://app5vfffdhz8371.pc.xiaoe-tech.com
+132. 131、26年--质量管理论文写法讲解
+   URL: https://app5vfffdhz8371.pc.xiaoe-tech.com
+133. 132、26年--资源管理论文写法讲解
+   URL: https://app5vfffdhz8371.pc.xiaoe-tech.com
+134. 133、26年--沟通管理论文写法讲解
+   URL: https://app5vfffdhz8371.pc.xiaoe-tech.com
+135. 134、26年--风险管理论文写法讲解
+   URL: https://app5vfffdhz8371.pc.xiaoe-tech.com
+136. 135、26年--采购管理论文写法讲解
+   URL: https://app5vfffdhz8371.pc.xiaoe-tech.com
+137. 136、26年--干系人管理论文写法讲解
+   URL: https://app5vfffdhz8371.pc.xiaoe-tech.com
+138. 137、26年--干系人绩效域论文写法讲解
+   URL: https://app5vfffdhz8371.pc.xiaoe-tech.com
+139. 138、26年--团队绩效域论文写法讲解
+   URL: https://app5vfffdhz8371.pc.xiaoe-tech.com
+140. 139、26年--开发方法和生命周期绩效域论文写法讲解
+   URL: https://app5vfffdhz8371.pc.xiaoe-tech.com
+141. 140、26年--规划绩效域论文写法讲解
+   URL: https://app5vfffdhz8371.pc.xiaoe-tech.com
+142. 141、26年--工作绩效域论文写法讲解
+   URL: https://app5vfffdhz8371.pc.xiaoe-tech.com
+143. 142、26年--交付绩效域论文写法讲解
+   URL: https://app5vfffdhz8371.pc.xiaoe-tech.com
+144. 143、26年--度量绩效域论文写法讲解
+   URL: https://app5vfffdhz8371.pc.xiaoe-tech.com
+145. 144、26年--不确定性绩效域论文写法讲解
+   URL: https://app5vfffdhz8371.pc.xiaoe-tech.com
+146. 145、26年--预期目标、检查指标、方法
+   URL: https://app5vfffdhz8371.pc.xiaoe-tech.com
+147. 146、26年--配置管理论文写法讲解
+   URL: https://app5vfffdhz8371.pc.xiaoe-tech.com
+148. 147、26年--变更管理论文写法讲解
+   URL: https://app5vfffdhz8371.pc.xiaoe-tech.com
+149. 148、26年--合同管理论文写法讲解
+   URL: https://app5vfffdhz8371.pc.xiaoe-tech.com
+150. 149、26年--其余领域论文写法讲解
+   URL: https://app5vfffdhz8371.pc.xiaoe-tech.com
+151. 150、26年--双拼论文写法讲解
+   URL: https://app5vfffdhz8371.pc.xiaoe-tech.com
+152. 151、26年--2005-2009年论文真题解析
+   URL: https://app5vfffdhz8371.pc.xiaoe-tech.com
+153. 152、26年--2010-2014年论文真题解析
+   URL: https://app5vfffdhz8371.pc.xiaoe-tech.com
+154. 153、26年--2015-2019年论文真题解析
+   URL: https://app5vfffdhz8371.pc.xiaoe-tech.com
+155. 154、26年--2020-2023年论文真题解析
+   URL: https://app5vfffdhz8371.pc.xiaoe-tech.com
+156. 155、26年--2024年论文真题解析
+   URL: https://app5vfffdhz8371.pc.xiaoe-tech.com
+157. 156、26年--2025年论文真题解析
+   URL: https://app5vfffdhz8371.pc.xiaoe-tech.com
+158. 157、26年--低分论文点评1
+   URL: https://app5vfffdhz8371.pc.xiaoe-tech.com
+159. 158、26年--低分论文点评2
+   URL: https://app5vfffdhz8371.pc.xiaoe-tech.com
+160. 159、26年--低分论文点评3
+   URL: https://app5vfffdhz8371.pc.xiaoe-tech.com
+161. 160、26年--低分论文点评4
+   URL: https://app5vfffdhz8371.pc.xiaoe-tech.com
+162. 161、26年--风险管理高分论文鉴赏（23年5月试题）
+   URL: https://app5vfffdhz8371.pc.xiaoe-tech.com
+163. 162、26年--资源管理高分论文鉴赏（23年11月试题）
+   URL: https://app5vfffdhz8371.pc.xiaoe-tech.com
+164. 163、26年--干系人管理高分论文鉴赏（23年11月试题）
+   URL: https://app5vfffdhz8371.pc.xiaoe-tech.com
+165. 164、26年--合同管理高分论文鉴赏（23年11月试题）
+   URL: https://app5vfffdhz8371.pc.xiaoe-tech.com
+166. 165、26年--工作绩效域高分论文鉴赏（23年11月试题）
+   URL: https://app5vfffdhz8371.pc.xiaoe-tech.com
+167. 166、26年--进度管理高分论文鉴赏（24年试题）
+   URL: https://app5vfffdhz8371.pc.xiaoe-tech.com
+168. 167、26年--成本管理高分论文鉴赏（24年试题）
+   URL: https://app5vfffdhz8371.pc.xiaoe-tech.com
+169. 168、26年--交付绩效域高分论文鉴赏（25年试题）
+   URL: https://app5vfffdhz8371.pc.xiaoe-tech.com
+170. 169、26年--不确定性绩效域高分论文鉴赏（25年试题）
+   URL: https://app5vfffdhz8371.pc.xiaoe-tech.com
+171. 170、26年--1个原创计算题等
+   URL: https://app5vfffdhz8371.pc.xiaoe-tech.com
+172. 171、26年--重要名词关键字1
+   URL: https://app5vfffdhz8371.pc.xiaoe-tech.com
+173. 172、26年--重要名词关键字2
+   URL: https://app5vfffdhz8371.pc.xiaoe-tech.com
+174. 173、26年--考前冲刺串讲1
+   URL: https://app5vfffdhz8371.pc.xiaoe-tech.com
+175. 174、26年--考前冲刺串讲2
+   URL: https://app5vfffdhz8371.pc.xiaoe-tech.com
+176. 175、26年--考前冲刺串讲3
+   URL: https://app5vfffdhz8371.pc.xiaoe-tech.com
+177. 176、26年--考前冲刺串讲4
+   URL: https://app5vfffdhz8371.pc.xiaoe-tech.com
+178. 177、26年--考前冲刺串讲5
+   URL: https://app5vfffdhz8371.pc.xiaoe-tech.com
+179. 178、26年--考前冲刺串讲6
+   URL: https://app5vfffdhz8371.pc.xiaoe-tech.com
+180. 179、26年--输入输出工具和技术梳理
+   URL: https://app5vfffdhz8371.pc.xiaoe-tech.com
+181. 180、26年--输入输出工具和技术、定义、作用专题
+   URL: https://app5vfffdhz8371.pc.xiaoe-tech.com
+182. 181、26年--进度压缩、计算题答疑
+   URL: https://app5vfffdhz8371.pc.xiaoe-tech.com
+183. 182、26年--讲10个案例题
+   URL: https://app5vfffdhz8371.pc.xiaoe-tech.com
+184. 183、26年--资源平滑、计算题答疑2
+   URL: https://app5vfffdhz8371.pc.xiaoe-tech.com
+185. 175、25年--再讲9个案例+2篇论文
+   URL: https://app5vfffdhz8371.pc.xiaoe-tech.com
+186. 176、25年--论文模拟题说明
+   URL: https://app5vfffdhz8371.pc.xiaoe-tech.com
+187. 177、25年--论文答疑+重要子题目
+   URL: https://app5vfffdhz8371.pc.xiaoe-tech.com
+188. 178、25年--论文+绩效域+IT部分知识
+   URL: https://app5vfffdhz8371.pc.xiaoe-tech.com
+189. 信息系统项目管理师题库
+   URL: https://app5vfffdhz8371.pc.xiaoe-tech.com

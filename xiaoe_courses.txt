@@ -1,0 +1,31 @@
+Fetching courses...
+Total: 189
+Saved 189 courses to xiaoe_course_list.md
+  1. 1、26年--考试介绍、学习方法
+                        上次学到
+  2. 1、26年--考试介绍、学习方法
+  3. 2、26年--论文基本介绍
+  4. 3、26年--案例分析基本介绍
+  5. 4、26年--各章节题型介绍及学习建议
+  6. 5、26年--招标投标法、政府采购法
+  7. 6、26年--实施条例、著作权法
+  8. 7、26年--信息化发展1
+  9. 8、26年--信息化发展2
+  10. 9、26年--信息技术发展1
+  ... and 179 more
+Exception ignored in: <function StreamWriter.__del__ at 0x000001DCE4F3AB60>
+Traceback (most recent call last):
+  File "C:\Program Files\Python312\Lib\asyncio\streams.py", line 397, in __del__
+  File "C:\Program Files\Python312\Lib\asyncio\streams.py", line 343, in close
+  File "C:\Program Files\Python312\Lib\asyncio\proactor_events.py", line 109, in close
+  File "C:\Program Files\Python312\Lib\asyncio\base_events.py", line 772, in call_soon
+  File "C:\Program Files\Python312\Lib\asyncio\base_events.py", line 519, in _check_closed
+RuntimeError: Event loop is closed
+Exception ignored in: <function BaseSubprocessTransport.__del__ at 0x000001DCE4F516C0>
+Traceback (most recent call last):
+  File "C:\Program Files\Python312\Lib\asyncio\base_subprocess.py", line 126, in __del__
+  File "C:\Program Files\Python312\Lib\asyncio\base_subprocess.py", line 104, in close
+  File "C:\Program Files\Python312\Lib\asyncio\proactor_events.py", line 109, in close
+  File "C:\Program Files\Python312\Lib\asyncio\base_events.py", line 772, in call_soon
+  File "C:\Program Files\Python312\Lib\asyncio\base_events.py", line 519, in _check_closed
+RuntimeError: Event loop is closed
