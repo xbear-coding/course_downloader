@@ -128,7 +128,7 @@ class XiaoEPlugin(BasePlatform, VideoCapable):
 
             for api_item in api_items:
                 resource_id = api_item.get("resource_id", "") or api_item.get("ID", "") or api_item.get("id", "")
-                title = api_item.get("name", "") or api_item.get("title", "") or api_item.get("resource_name", "")
+                title = api_item.get("resource_title", "") or api_item.get("name", "") or api_item.get("title", "") or api_item.get("resource_name", "")
                 if not resource_id or not title:
                     continue
                 items.append(ContentItem(
@@ -137,7 +137,7 @@ class XiaoEPlugin(BasePlatform, VideoCapable):
                     url=f"{WEB_BASE}/p/t_pc/course_pc_detail/column/{COLUMN_ID}?rid={resource_id}",
                 ))
 
-            return FetchResult(items=items, total_estimated=len(items), next_token=str(page + 1) if len(api_items) >= 50 else None)
+            return FetchResult(items=items, total_estimated=len(items), next_token=str(page + 1) if len(api_items) > 0 else None)
         except Exception as e:
             logger.error(f"[xiaoe] API获取课程列表失败: {e}")
             return FetchResult(items=[], partial=True)
@@ -145,42 +145,39 @@ class XiaoEPlugin(BasePlatform, VideoCapable):
     async def download_video(self, item: ContentItem, output: Path, quality: str = "720p") -> DownloadResult:
         if not self._cookies:
             self._cookies = await _load_cookies()
-        if not self._cookies:
-            return DownloadResult(success=False, error_code="NO_AUTH", error_message="未登录")
+
+        pb = await self.browser_mgr.get_browser(self.platform, headless=False)
+        page = await pb.new_page()
+
+        m3u8_url = None
+
+        async def intercept(response):
+            nonlocal m3u8_url
+            url = response.url
+            if ".m3u8" in url and "v-vod" in url:
+                m3u8_url = url
+
+        page.on("response", intercept)
 
         try:
-            detail = await self._api_request(VIDEO_DETAIL_URL, {
-                "resource_id": item.item_id, "resource_app_id": APP_ID,
-            })
+            video_page = f"{API_BASE}/p/t_pc/course_pc_detail/video/{item.item_id}?product_id={COLUMN_ID}&type=6"
+            await page.goto(video_page, wait_until="domcontentloaded", timeout=20000)
+            await asyncio.sleep(3)
 
-            video_url = None
-            data = detail.get("data", {})
-            for key in ["video_url", "play_url", "stream_url", "url", "m3u8_url"]:
-                if key in data and data[key]:
-                    video_url = data[key]
+            for _ in range(30):
+                if m3u8_url:
                     break
-            content = data.get("content", {})
-            if isinstance(content, dict) and not video_url:
-                for key in ["video_url", "play_url", "url"]:
-                    if key in content and content[key]:
-                        video_url = content[key]
-                        break
+                await asyncio.sleep(1)
 
-            if not video_url:
-                return DownloadResult(success=False, error_code="NO_VIDEO_URL", error_message=f"API未返回视频URL")
+            if not m3u8_url:
+                return DownloadResult(success=False, error_code="NO_M3U8", error_message="未捕获到视频流")
 
-            if ".m3u8" in video_url:
-                return await self._download_m3u8(video_url, output)
-            else:
-                async with httpx.AsyncClient(timeout=300, follow_redirects=True) as c:
-                    c.cookies.update(self._cookies)
-                    r = await c.get(video_url)
-                    if r.status_code == 200 and len(r.content) > 1024:
-                        output.write_bytes(r.content)
-                        return DownloadResult(success=True, file_path=output, file_type=output.suffix.lstrip(".") or "mp4")
-                return DownloadResult(success=False, error_code="DOWNLOAD_FAIL")
+            return await self._download_m3u8(m3u8_url, output)
         except Exception as e:
             return DownloadResult(success=False, error_code="ERROR", error_message=str(e)[:200])
+        finally:
+            page.remove_listener("response", intercept)
+            await page.close()
 
     async def _download_m3u8(self, m3u8_url: str, output: Path) -> DownloadResult:
         try:
