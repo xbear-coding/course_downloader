@@ -1,9 +1,11 @@
-"""小鹅通平台插件（appid 自动发现 + 课程列表 + m3u8 下载）"""
+"""小鹅通平台插件 — API 直调（非 React 点击）"""
 import asyncio
+import json
 import logging
 import re
+import httpx
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Dict
 from app.services.platform_base import (
     BasePlatform, VideoCapable,
     LoginResult, ContentItem, FetchResult, DownloadResult,
@@ -13,275 +15,205 @@ from app.database import async_session
 
 logger = logging.getLogger(__name__)
 
-XIAOE_HOME = "https://www.xiaoe-tech.com"
-
-
-def _extract_appid(url: str) -> str | None:
-    m = re.search(r"app[a-zA-Z0-9]{14,24}", url)
-    return m.group(0) if m else None
-
-
-def _build_url(base_url: str, path: str = "") -> str:
-    return f"{base_url}{path}"
-
-
-async def _get_account_base_url(account_id: int) -> str | None:
-    from app.models import Account
-    async with async_session() as db:
-        acct = await db.get(Account, account_id)
-        if acct and acct.cookie_file and acct.cookie_file.startswith("xiaoe:"):
-            return acct.cookie_file.split(":", 1)[1]
-    return None
-
-
-async def _save_account_base_url(account_id: int, base_url: str):
-    from app.models import Account
-    async with async_session() as db:
-        acct = await db.get(Account, account_id)
-        if acct:
-            acct.cookie_file = f"xiaoe:{base_url}"
-            await db.commit()
+# 小鹅通 API 配置（从旧项目获取）
+APP_ID = "app5vfffdhz8371"
+COLUMN_ID = "p_60f40504e4b08f7ad23e0e60"
+API_BASE = f"https://{APP_ID}.xet-pc.citv.cn"
+COURSE_LIST_URL = f"{API_BASE}/xe.course.business_go.column.items.get/2.0.0"
+VIDEO_DETAIL_URL = f"{API_BASE}/xe.course.business_go.video_detail.get/2.0.0"
+WEB_BASE = f"https://{APP_ID}.pc.xiaoe-tech.com"
 
 
 class XiaoEPlugin(BasePlatform, VideoCapable):
-    """小鹅通插件
+    """小鹅通插件 — API 直调
 
     流程：
-    1. 登录 → 自动检测 base_url → 持久化
-    2. 课程列表：访问课程页 → 点"加载更多"至全部 → 提取条目
-    3. 下载：点击课程 → CDP 拦截 m3u8 → 下载合并 → ASR
+    1. 登录：Playwright 扫码/手机验证码
+    2. 课程列表：直接 POST API（带 Cookie）
+    3. 视频下载：API 获取 m3u8 → 下载 TS → ffmpeg 合并 → ASR
     """
 
     def __init__(self):
         self.browser_mgr = BrowserManager()
-        self._base_url: str | None = None
+        self._cookies: Dict[str, str] = {}
 
     @property
     def platform(self) -> str:
         return "xiaoe"
 
-    async def _resolve_base_url(self, account_id: int) -> str | None:
-        if self._base_url:
-            return self._base_url
-        self._base_url = await _get_account_base_url(account_id)
-        return self._base_url
-
-    async def _check_logged_in(self, page) -> bool:
-        url = page.url
-        if "login" not in url.lower() and "www.xiaoe-tech.com" not in url:
-            return True
-        try:
-            body = await page.inner_text("body")
-            if "退出" in body or "我的课程" in body or "我的学习" in body:
-                return True
-            user_els = await page.query_selector_all(
-                '[class*=avatar], [class*=user], [class*=User], '
-                '[class*=userInfo], [class*=nickname]'
-            )
-            if user_els:
-                return True
-        except Exception:
-            pass
-        return False
-
     async def login(self, account_id: int) -> LoginResult:
         try:
-            existing_base = await self._resolve_base_url(account_id)
-            start_url = existing_base or f"{XIAOE_HOME}/login"
             pb = await self.browser_mgr.get_browser(self.platform, headless=False)
             page = await pb.new_page()
-            await page.goto(start_url, wait_until="domcontentloaded")
-            await asyncio.sleep(3)
-            if await self._check_logged_in(page):
-                base = await page.evaluate("window.location.origin")
-                if base and base != existing_base:
-                    await _save_account_base_url(account_id, base)
-                    self._base_url = base
+            await page.goto(f"{API_BASE}/p/t_pc/login", wait_until="domcontentloaded", timeout=20000)
+            await asyncio.sleep(4)
+
+            body = await page.inner_text("body")
+            if "退出" in body:
+                await self._extract_cookies(page)
                 return LoginResult(success=True)
-            for _ in range(180):
+
+            for i in range(300):
                 await asyncio.sleep(1)
-                if await self._check_logged_in(page):
-                    base = await page.evaluate("window.location.origin")
-                    if base:
-                        await _save_account_base_url(account_id, base)
-                        self._base_url = base
-                    return LoginResult(success=True)
+                try:
+                    body = await page.inner_text("body")
+                    if "退出" in body:
+                        await self._extract_cookies(page)
+                        return LoginResult(success=True)
+                except Exception:
+                    pass
+                if i % 30 == 0:
+                    logger.info(f"[xiaoe] 等待登录... {i}s")
+
             return LoginResult(success=False, error_code="TIMEOUT", error_message="登录超时")
         except Exception as e:
             return LoginResult(success=False, error_code="ERROR", error_message=str(e)[:100])
 
+    async def _extract_cookies(self, page) -> Dict[str, str]:
+        """从浏览器页面提取 cookie"""
+        cookies = await page.context.cookies()
+        self._cookies = {c["name"]: c["value"] for c in cookies}
+        logger.info(f"[xiaoe] 已提取 {len(self._cookies)} 个 cookie")
+        return self._cookies
+
+    async def _api_request(self, url: str, data: dict) -> dict:
+        """带 Cookie 的 API 请求"""
+        headers = {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+            "Accept": "application/json, text/plain, */*",
+            "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
+            "Origin": API_BASE,
+            "Referer": f"{WEB_BASE}/",
+        }
+        async with httpx.AsyncClient(timeout=15, headers=headers) as c:
+            c.cookies.update(self._cookies)
+            r = await c.post(url, data=data)
+            if r.status_code != 200:
+                raise RuntimeError(f"API {r.status_code}: {r.text[:200]}")
+            return r.json()
+
     async def fetch_list(self, page_token: Optional[str] = None) -> FetchResult:
-        from app.models import Account, Platform
-        from sqlalchemy import select
-
-        async with async_session() as db:
-            platform = (await db.execute(select(Platform).where(Platform.name == "xiaoe"))).scalar_one_or_none()
-            if not platform:
-                return FetchResult(items=[], partial=True)
-            acct = (await db.execute(
-                select(Account).where(Account.platform_id == platform.id, Account.is_active == True)
-            )).scalar_one_or_none()
-            if not acct:
-                return FetchResult(items=[], partial=True)
-            base_url = await self._resolve_base_url(acct.id) or _extract_appid(acct.cookie_file or "")
-            if not base_url:
+        # 如果 cookies 为空，先从浏览器提取
+        if not self._cookies:
+            try:
+                pb = await self.browser_mgr.get_browser(self.platform, headless=False)
+                page = await pb.new_page()
+                await page.goto(f"{WEB_BASE}/p/t_pc/course_pc_detail/column/{COLUMN_ID}",
+                                wait_until="domcontentloaded", timeout=30000)
+                await asyncio.sleep(4)
+                await self._extract_cookies(page)
+            except Exception as e:
                 return FetchResult(items=[], partial=True)
 
-        pb = await self.browser_mgr.get_browser(self.platform, headless=False)
-        page = await pb.new_page()
+        items = []
+        page = int(page_token or 1)
+        page_size = 50
 
         try:
-            # 访问课程列表页（使用用户提供的完整页面 URL）
-            course_url = f"{base_url}/p/t_pc/course_pc_detail/column/p_60f40504e4b08f7ad23e0e60"
-            await page.goto(course_url, wait_until="domcontentloaded", timeout=30000)
-            await asyncio.sleep(5)
+            result = await self._api_request(COURSE_LIST_URL, {
+                "column_id": COLUMN_ID,
+                "page": str(page),
+                "size": str(page_size),
+            })
 
-            # 反复点击"加载更多"
-            for _ in range(50):
-                try:
-                    btn = await page.query_selector(".load_more_btn, [class*=load_more]")
-                    if not btn:
-                        break
-                    await btn.scroll_into_view_if_needed()
-                    await asyncio.sleep(0.3)
-                    visible = await btn.is_visible()
-                    if not visible:
-                        await page.evaluate("window.scrollBy(0, 300)")
-                        await asyncio.sleep(0.5)
-                        continue
-                    await btn.click()
-                    await asyncio.sleep(1)
-                except Exception:
-                    break
+            data = result.get("data", {})
+            api_items = data.get("items", [])
 
-            await asyncio.sleep(2)
-
-            # 提取课程条目
-            items = []
-            seen_titles = set()
-
-            entries = await page.evaluate("""() => {
-                const items = document.querySelectorAll(".item-title, [class*=item-title]");
-                const result = [];
-                items.forEach(el => {
-                    const text = (el.textContent || "").trim();
-                    if (text && text.length > 3) {
-                        // Find parent for link
-                        const parent = el.closest("a") || el.querySelector("a");
-                        const href = parent ? (parent.getAttribute("href") || "") : "";
-                        result.push({title: text, href: href});
-                    }
-                });
-                return result;
-            }""")
-
-            for e in entries:
-                title = e["title"].strip()
-                # 去重（同一条目可能出现多次）
-                if title in seen_titles:
+            for api_item in api_items:
+                resource_id = api_item.get("resource_id", "") or api_item.get("ID", "") or api_item.get("id", "")
+                title = api_item.get("name", "") or api_item.get("title", "") or api_item.get("resource_name", "")
+                if not resource_id or not title:
                     continue
-                if "上传练习" in title or len(title) < 5:
-                    continue
-                seen_titles.add(title)
 
-                item_id = title.split("--")[0].strip() if "--" in title else title[:20]
                 items.append(ContentItem(
                     platform="xiaoe",
-                    item_id=item_id,
-                    title=title[:200],
+                    item_id=resource_id,
+                    title=title.strip()[:200],
                     content_type="video",
-                    url=e["href"] if e["href"].startswith("http") else f"{base_url}{e['href']}",
+                    url=f"{WEB_BASE}/p/t_pc/course_pc_detail/column/{COLUMN_ID}?resource_id={resource_id}",
                 ))
 
-            return FetchResult(items=items, total_estimated=len(items))
+            # 检查是否有更多页
+            has_more = len(api_items) >= page_size
+            next_token = str(page + 1) if has_more else None
+
+            return FetchResult(items=items, next_token=next_token, total_estimated=len(items))
 
         except Exception as e:
-            logger.error(f"[xiaoe] 获取课程列表失败: {e}")
+            logger.error(f"[xiaoe] API 获取课程列表失败: {e}")
             return FetchResult(items=[], partial=True)
-        finally:
-            await page.close()
 
     async def download_video(
         self, item: ContentItem, output: Path, quality: str = "720p"
     ) -> DownloadResult:
-        pb = await self.browser_mgr.get_browser(self.platform, headless=False)
-        page = await pb.new_page()
-
-        m3u8_url = None
-
-        # 拦截 m3u8 请求
-        async def intercept_response(response):
-            nonlocal m3u8_url
-            url = response.url
-            if ".m3u8" in url and ("xiaoe" in url or "cloud" in url):
-                m3u8_url = url
-
-        page.on("response", intercept_response)
+        # 确保 cookies 有效
+        if not self._cookies:
+            return DownloadResult(success=False, error_code="NO_AUTH", error_message="未登录")
 
         try:
-            # 访问课程页面
-            await page.goto(item.url, wait_until="domcontentloaded", timeout=20000)
-            await asyncio.sleep(5)
+            # 获取视频详情（含 m3u8 URL）
+            detail = await self._api_request(VIDEO_DETAIL_URL, {
+                "resource_id": item.item_id,
+                "resource_app_id": APP_ID,
+            })
 
-            # 尝试播放（点击播放按钮或视频区域）
-            try:
-                play_btn = await page.query_selector(
-                    "button:has-text('播放'), .play-btn, [class*='play'], video, "
-                    "[class*='video'], [class*='player']"
-                )
-                if play_btn:
-                    await play_btn.click()
-                    await asyncio.sleep(3)
-            except Exception:
-                pass
-
-            # 等待 m3u8 请求
-            for _ in range(30):
-                if m3u8_url:
+            # 从响应中提取视频 URL
+            video_url = None
+            data = detail.get("data", {})
+            for key in ["video_url", "play_url", "stream_url", "url", "m3u8_url"]:
+                if key in data and data[key]:
+                    video_url = data[key]
                     break
-                await asyncio.sleep(1)
+            content = data.get("content", {})
+            if isinstance(content, dict) and not video_url:
+                for key in ["video_url", "play_url", "url", "stream_url"]:
+                    if key in content and content[key]:
+                        video_url = content[key]
+                        break
 
-            if m3u8_url:
-                return await self._download_m3u8(m3u8_url, output)
+            if not video_url:
+                # 也可能是直接返回的 url 在 data 顶层
+                return DownloadResult(
+                    success=False, error_code="NO_VIDEO_URL",
+                    error_message=f"API未返回视频URL: {json.dumps(detail, ensure_ascii=False)[:300]}",
+                )
 
-            # 回退：尝试从 video 标签获取
-            video_src = await page.evaluate("""() => {
-                const v = document.querySelector('video');
-                return v ? (v.src || (v.querySelector('source')?.src) || '') : '';
-            }""")
-            if video_src:
-                import httpx
-                async with httpx.AsyncClient(timeout=300) as c:
-                    r = await c.get(video_src)
-                    if r.status_code == 200:
+            # 下载视频
+            if ".m3u8" in video_url:
+                return await self._download_m3u8(video_url, output)
+            else:
+                async with httpx.AsyncClient(timeout=300, follow_redirects=True) as c:
+                    c.cookies.update(self._cookies)
+                    r = await c.get(video_url)
+                    if r.status_code == 200 and len(r.content) > 1024:
                         output.write_bytes(r.content)
-                        return DownloadResult(success=True, file_path=output, file_type="ts")
+                        return DownloadResult(success=True, file_path=output, file_type=output.suffix.lstrip(".") or "mp4")
+                    return DownloadResult(success=False, error_code="DOWNLOAD_FAIL")
 
-            return DownloadResult(success=False, error_code="NO_M3U8", error_message="未捕获到视频流")
         except Exception as e:
             return DownloadResult(success=False, error_code="ERROR", error_message=str(e)[:200])
-        finally:
-            page.remove_listener("response", intercept_response)
-            await page.close()
 
     async def _download_m3u8(self, m3u8_url: str, output: Path) -> DownloadResult:
-        import httpx
+        import httpx as _httpx
 
         try:
-            async with httpx.AsyncClient(timeout=30) as client:
-                resp = await client.get(m3u8_url)
+            async with _httpx.AsyncClient(timeout=30) as c:
+                c.cookies.update(self._cookies)
+                resp = await c.get(m3u8_url)
                 if resp.status_code != 200:
                     return DownloadResult(success=False, error_code="M3U8_FETCH_FAIL")
 
                 content = resp.text
                 base = m3u8_url.rsplit("/", 1)[0] + "/"
 
+                # 递归处理多级 m3u8
                 for line in content.splitlines():
                     line = line.strip()
                     if line.endswith(".m3u8") and not line.startswith("#"):
                         sub_url = line if line.startswith("http") else base + line
                         return await self._download_m3u8(sub_url, output)
 
+                # 收集 TS 片段
                 ts_urls = []
                 for line in content.splitlines():
                     line = line.strip()
@@ -296,7 +228,7 @@ class XiaoEPlugin(BasePlatform, VideoCapable):
                 with open(output, "wb") as f:
                     for i, ts_url in enumerate(ts_urls):
                         try:
-                            r = await client.get(ts_url, timeout=30)
+                            r = await c.get(ts_url, timeout=30)
                             if r.status_code == 200:
                                 f.write(r.content)
                         except Exception:
