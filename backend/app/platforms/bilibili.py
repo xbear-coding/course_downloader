@@ -1,4 +1,4 @@
-"""B站平台插件（含 WBI 签名 + Cookie 提取）"""
+"""B站平台插件 — 收藏夹 + UP主视频 + 字幕"""
 import asyncio
 import hashlib
 import logging
@@ -36,13 +36,11 @@ async def _update_wbi_keys(headers: dict):
     try:
         async with httpx.AsyncClient(timeout=10) as c:
             r = await c.get(f"{BILIBILI_API_BASE}/x/web-interface/nav", headers=headers)
-            if r.status_code != 200:
-                return
-            data = r.json().get("data", {})
-            wbi_img = data.get("wbi_img", {})
-            if wbi_img:
-                _wbi_keys = {"img_key": wbi_img.get("img_key", ""), "sub_key": wbi_img.get("sub_key", "")}
-                _wbi_keys_time = time.time()
+            if r.status_code == 200:
+                wi = r.json().get("data", {}).get("wbi_img", {})
+                if wi:
+                    _wbi_keys = {"img_key": wi.get("img_key", ""), "sub_key": wi.get("sub_key", "")}
+                    _wbi_keys_time = time.time()
     except Exception:
         pass
 
@@ -55,10 +53,17 @@ def _sign_wbi(params: dict, mix_key: str | None = None) -> dict:
     signed = dict(params)
     signed["wts"] = int(time.time())
     keys = sorted(signed.keys())
-    sorted_params = urllib.parse.urlencode({k: signed[k] for k in keys})
-    sign_str = sorted_params + mix_key
-    signed["w_rid"] = hashlib.md5(sign_str.encode()).hexdigest()
+    sp = urllib.parse.urlencode({k: signed[k] for k in keys})
+    signed["w_rid"] = hashlib.md5((sp + mix_key).encode()).hexdigest()
     return signed
+
+
+def _extract_mid(url_or_name: str) -> str | None:
+    """从URL或名字中提取mid"""
+    m = re.search(r'space\.bilibili\.com/(\d+)', url_or_name)
+    if m:
+        return m.group(1)
+    return None
 
 
 class BilibiliPlugin(BasePlatform, VideoCapable, SubtitleCapable):
@@ -93,63 +98,89 @@ class BilibiliPlugin(BasePlatform, VideoCapable, SubtitleCapable):
         self._cookies = {c["name"]: c["value"] for c in cookies}
 
     async def fetch_list(self, page_token: Optional[str] = None) -> FetchResult:
-        items = []
-        page = int(page_token or 1)
-        page_size = 30
-
-        async with async_session() as db:
-            from app.models import Platform as PlatModel, Account
-            from sqlalchemy import select
-            plat = (await db.execute(select(PlatModel).where(PlatModel.name == "bilibili"))).scalar_one_or_none()
-            if not plat:
-                return FetchResult(items=[], partial=True)
-            acct = (await db.execute(
-                select(Account).where(Account.platform_id == plat.id, Account.is_active == True)
-            )).scalar_one_or_none()
-
-        if not acct:
+        """获取用户收藏夹视频列表"""
+        headers = self._build_headers()
+        mid = await self._get_mid()
+        if not mid:
             return FetchResult(items=[], partial=True)
 
+        await _update_wbi_keys(headers)
+        page = int(page_token or 1)
+
         try:
-            headers = self._build_headers()
-            await _update_wbi_keys(headers)
-
-            async with httpx.AsyncClient(timeout=15) as client:
-                resp = await client.get(f"{BILIBILI_API_BASE}/x/web-interface/nav", headers=headers)
-                if resp.status_code != 200:
-                    return FetchResult(items=[], partial=True)
-                nav_data = resp.json()
-                mid = nav_data.get("data", {}).get("mid", 0)
-                if not mid:
-                    return FetchResult(items=[], partial=True)
-
-                wbi_params = _sign_wbi({"mid": mid, "ps": page_size, "pn": page})
-                resp2 = await client.get(
-                    f"{BILIBILI_API_BASE}/x/space/wbi/arc/search",
-                    params=wbi_params, headers=headers,
+            async with httpx.AsyncClient(timeout=15) as c:
+                # 先获取收藏夹列表
+                r = await c.get(
+                    f"{BILIBILI_API_BASE}/x/v3/fav/folder/created/list",
+                    params={"up_mid": mid}, headers=headers,
                 )
-                if resp2.status_code != 200:
+                folders = r.json().get("data", {}).get("list", []) if r.status_code == 200 else []
+                if not folders:
+                    logger.warning("[bilibili] 无收藏夹")
                     return FetchResult(items=[], partial=True)
 
-                data = resp2.json().get("data", {})
-                vlist = data.get("list", {}).get("vlist", []) or data.get("list", []) or []
+                # 取第一个收藏夹的视频
+                media_id = folders[0].get("media_id") or folders[0].get("id", 0)
+                r2 = await c.get(
+                    f"{BILIBILI_API_BASE}/x/v3/fav/resource/list",
+                    params={"media_id": media_id, "pn": page, "ps": 20},
+                    headers=headers,
+                )
+                if r2.status_code != 200:
+                    return FetchResult(items=[], partial=True)
 
+                items = []
+                for v in r2.json().get("data", {}).get("medias", []):
+                    aid = str(v.get("id") or v.get("aid", ""))
+                    bvid = v.get("bvid", "")
+                    if not aid and not bvid:
+                        continue
+                    items.append(ContentItem(
+                        platform="bilibili", item_id=bvid or aid,
+                        title=v.get("title", "未知视频"), content_type="video",
+                        url=f"https://www.bilibili.com/video/{bvid or aid}",
+                        metadata={"bvid": bvid, "duration": v.get("duration", 0)},
+                    ))
+
+                info = r2.json().get("data", {}).get("info", {})
+                total = info.get("media_count", 0)
+                return FetchResult(items=items, total_estimated=total,
+                                  next_token=str(page + 1) if page * 20 < total else None)
+        except Exception as e:
+            logger.error(f"[bilibili] 获取收藏失败: {e}")
+            return FetchResult(items=[], partial=True)
+
+    async def fetch_list_up(self, up_url_or_mid: str, page_token: Optional[str] = None) -> FetchResult:
+        """获取指定UP主的视频列表"""
+        headers = self._build_headers()
+        mid = _extract_mid(up_url_or_mid) or up_url_or_mid
+        await _update_wbi_keys(headers)
+
+        page = int(page_token or 1)
+        items = []
+        try:
+            async with httpx.AsyncClient(timeout=15) as c:
+                params = _sign_wbi({"mid": mid, "ps": 30, "pn": page})
+                r = await c.get(f"{BILIBILI_API_BASE}/x/space/wbi/arc/search", params=params, headers=headers)
+                if r.status_code != 200:
+                    return FetchResult(items=[], partial=True)
+                data = r.json().get("data", {})
+                vlist = data.get("list", {}).get("vlist", []) or data.get("list", []) or []
                 for v in vlist:
                     aid = str(v.get("aid") or v.get("bvid", ""))
                     if not aid:
                         continue
                     items.append(ContentItem(
-                        platform="bilibili", item_id=aid,
-                        title=v.get("title", "未知视频"), content_type="video",
+                        platform="bilibili", item_id=aid, title=v.get("title", "未知视频"),
+                        content_type="video",
                         url=f"https://www.bilibili.com/video/{v.get('bvid', aid)}",
                         metadata={"bvid": v.get("bvid", ""), "duration": v.get("duration", 0)},
                     ))
-
                 total = data.get("page", {}).get("count", 0) or data.get("total", 0)
                 return FetchResult(items=items, total_estimated=total,
-                                  next_token=str(page + 1) if page * page_size < total else None)
+                                  next_token=str(page + 1) if page * 30 < total else None)
         except Exception as e:
-            logger.error(f"[bilibili] 获取列表失败: {e}")
+            logger.error(f"[bilibili] 获取UP主视频失败: {e}")
             return FetchResult(items=[], partial=True)
 
     async def download_video(self, item: ContentItem, output: Path, quality: str = "720p") -> DownloadResult:
@@ -157,54 +188,35 @@ class BilibiliPlugin(BasePlatform, VideoCapable, SubtitleCapable):
             headers = self._build_headers()
             bvid = item.metadata.get("bvid", item.item_id)
             await _update_wbi_keys(headers)
-
-            async with httpx.AsyncClient(timeout=30) as client:
-                params = {}
-                if bvid.startswith("BV"):
-                    params["bvid"] = bvid
-                else:
-                    params["avid"] = item.item_id
-                params["qn"] = 80
-                params["fnval"] = 4048
-
-                signed_params = _sign_wbi(params)
-                resp = await client.get(
-                    f"{BILIBILI_API_BASE}/x/player/wbi/playurl",
-                    params=signed_params, headers=headers,
-                )
-                if resp.status_code != 200:
-                    return DownloadResult(success=False, error_code="API_FAIL",
-                                          error_message=f"B站API返回{resp.status_code}")
-                data = resp.json().get("data", {})
+            async with httpx.AsyncClient(timeout=30) as c:
+                params = {"bvid": bvid, "qn": 80, "fnval": 4048} if bvid.startswith("BV") else {"avid": item.item_id, "qn": 80, "fnval": 4048}
+                r = await c.get(f"{BILIBILI_API_BASE}/x/player/wbi/playurl", params=_sign_wbi(params), headers=headers)
+                if r.status_code != 200:
+                    return DownloadResult(success=False, error_code="API_FAIL", error_message=f"B站API返回{r.status_code}")
+                data = r.json().get("data", {})
                 dash = data.get("dash", {})
                 video_url, audio_url = None, None
-
                 if dash:
                     videos, audios = dash.get("video", []), dash.get("audio", [])
                     qn_map = {"360p": 32, "480p": 64, "720p": 80, "1080p": 120}
                     target_id = qn_map.get(quality, 80)
-                    best_video = None
+                    best = None
                     for v in videos:
-                        if v.get("id", 0) <= target_id:
-                            if not best_video or v.get("id", 0) > best_video.get("id", 0):
-                                best_video = v
-                    video_url = best_video.get("baseUrl", "") if best_video else ""
+                        if v.get("id", 0) <= target_id and (not best or v.get("id", 0) > best.get("id", 0)):
+                            best = v
+                    video_url = best.get("baseUrl", "") if best else ""
                     audio_url = audios[0].get("baseUrl", "") if audios else ""
-
                 if not video_url:
                     durl = data.get("durl", [])
                     if durl:
                         video_url, audio_url = durl[0].get("url", ""), None
-
                 if not video_url:
                     return DownloadResult(success=False, error_code="NO_VIDEO_URL")
-
                 output.parent.mkdir(parents=True, exist_ok=True)
-
                 if audio_url:
-                    vt, at = output.with_suffix(".video.mp4"), output.with_suffix(".audio.mp4")
-                    await self._dl(client, video_url, vt, headers)
-                    await self._dl(client, audio_url, at, headers)
+                    vt, at = output.with_suffix(".v.mp4"), output.with_suffix(".a.mp4")
+                    await self._dl(c, video_url, vt, headers)
+                    await self._dl(c, audio_url, at, headers)
                     cmd = ["ffmpeg", "-y", "-i", str(vt), "-i", str(at), "-c:v", "copy", "-c:a", "aac", str(output)]
                     proc = await asyncio.create_subprocess_exec(*cmd)
                     try:
@@ -215,8 +227,7 @@ class BilibiliPlugin(BasePlatform, VideoCapable, SubtitleCapable):
                     at.unlink(missing_ok=True)
                     if output.exists():
                         return DownloadResult(success=True, file_path=output, file_type="mp4")
-
-                await self._dl(client, video_url, output, headers)
+                await self._dl(c, video_url, output, headers)
                 if output.exists() and output.stat().st_size > 1024:
                     return DownloadResult(success=True, file_path=output, file_type="mp4")
                 return DownloadResult(success=False, error_code="DOWNLOAD_FAILED")
@@ -226,21 +237,21 @@ class BilibiliPlugin(BasePlatform, VideoCapable, SubtitleCapable):
     async def download_subtitle(self, item: ContentItem, language: str = "zh") -> str:
         headers = self._build_headers()
         bvid = item.metadata.get("bvid", item.item_id)
-        async with httpx.AsyncClient(timeout=15) as client:
+        async with httpx.AsyncClient(timeout=15) as c:
             params = {"bvid": bvid} if bvid.startswith("BV") else {"avid": item.item_id}
-            resp = await client.get(f"{BILIBILI_API_BASE}/x/player/v2", params=params, headers=headers)
-            if resp.status_code != 200:
+            r = await c.get(f"{BILIBILI_API_BASE}/x/player/v2", params=params, headers=headers)
+            if r.status_code != 200:
                 return ""
-            for sub in resp.json().get("data", {}).get("subtitle", {}).get("subtitles", []):
+            for sub in r.json().get("data", {}).get("subtitle", {}).get("subtitles", []):
                 if language in sub.get("lan_doc", "") or sub.get("language") == language:
-                    sub_url = sub.get("subtitle_url", "")
-                    if sub_url:
-                        if sub_url.startswith("//"):
-                            sub_url = "https:" + sub_url
-                        resp2 = await client.get(sub_url)
-                        if resp2.status_code == 200:
+                    su = sub.get("subtitle_url", "")
+                    if su:
+                        if su.startswith("//"):
+                            su = "https:" + su
+                        r2 = await c.get(su)
+                        if r2.status_code == 200:
                             lines = []
-                            for s in resp2.json().get("body", []):
+                            for s in r2.json().get("body", []):
                                 h, r = divmod(int(s.get("from", 0)), 3600)
                                 m, s2 = divmod(r, 60)
                                 lines.append(f"**{h:02d}:{m:02d}:{s2:02d} →** {s.get('content', '')}")
@@ -250,13 +261,22 @@ class BilibiliPlugin(BasePlatform, VideoCapable, SubtitleCapable):
     async def get_metadata(self, item: ContentItem) -> dict:
         headers = self._build_headers()
         bvid = item.metadata.get("bvid", item.item_id)
-        async with httpx.AsyncClient(timeout=10) as client:
+        async with httpx.AsyncClient(timeout=10) as c:
             params = {"bvid": bvid} if bvid.startswith("BV") else {"avid": item.item_id}
-            resp = await client.get(f"{BILIBILI_API_BASE}/x/web-interface/view", params=params, headers=headers)
-            if resp.status_code == 200:
-                d = resp.json().get("data", {})
+            r = await c.get(f"{BILIBILI_API_BASE}/x/web-interface/view", params=params, headers=headers)
+            if r.status_code == 200:
+                d = r.json().get("data", {})
                 return {"title": d.get("title", ""), "desc": d.get("desc", ""), "duration": d.get("duration", 0)}
             return {"title": item.title}
+
+    async def _get_mid(self) -> str | None:
+        headers = self._build_headers()
+        try:
+            async with httpx.AsyncClient(timeout=10) as c:
+                r = await c.get(f"{BILIBILI_API_BASE}/x/web-interface/nav", headers=headers)
+                return str(r.json().get("data", {}).get("mid", 0)) if r.status_code == 200 else None
+        except Exception:
+            return None
 
     def _build_headers(self) -> dict:
         h = {
