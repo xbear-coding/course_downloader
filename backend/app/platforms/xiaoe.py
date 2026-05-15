@@ -69,7 +69,7 @@ class XiaoEPlugin(BasePlatform, VideoCapable):
             await asyncio.sleep(5)
 
             body = await page.inner_text("body")
-            if "退出" in body:
+            if "退出" in body or "我的课程" in body:
                 await self._extract_cookies(page)
                 return LoginResult(success=True)
 
@@ -77,7 +77,7 @@ class XiaoEPlugin(BasePlatform, VideoCapable):
                 await asyncio.sleep(1)
                 try:
                     body = await page.inner_text("body")
-                    if "退出" in body:
+                    if "退出" in body or "我的课程" in body:
                         await self._extract_cookies(page)
                         return LoginResult(success=True)
                 except Exception:
