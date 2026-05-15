@@ -1,0 +1,27 @@
+========== 小鹅通全自动管线 ==========
+
+[1] 打开浏览器，请输入手机号+验证码登录
+    等待最长300秒...
+    登录: 成功
+    Cookie: 25 个
+
+[2] 获取课程列表...
+    共 0 课
+
+========== 完成 ==========
+Exception ignored in: <function StreamWriter.__del__ at 0x000001E045EFAC00>
+Traceback (most recent call last):
+  File "C:\Program Files\Python312\Lib\asyncio\streams.py", line 397, in __del__
+  File "C:\Program Files\Python312\Lib\asyncio\streams.py", line 343, in close
+  File "C:\Program Files\Python312\Lib\asyncio\proactor_events.py", line 109, in close
+  File "C:\Program Files\Python312\Lib\asyncio\base_events.py", line 772, in call_soon
+  File "C:\Program Files\Python312\Lib\asyncio\base_events.py", line 519, in _check_closed
+RuntimeError: Event loop is closed
+Exception ignored in: <function BaseSubprocessTransport.__del__ at 0x000001E045F19760>
+Traceback (most recent call last):
+  File "C:\Program Files\Python312\Lib\asyncio\base_subprocess.py", line 126, in __del__
+  File "C:\Program Files\Python312\Lib\asyncio\base_subprocess.py", line 104, in close
+  File "C:\Program Files\Python312\Lib\asyncio\proactor_events.py", line 109, in close
+  File "C:\Program Files\Python312\Lib\asyncio\base_events.py", line 772, in call_soon
+  File "C:\Program Files\Python312\Lib\asyncio\base_events.py", line 519, in _check_closed
+RuntimeError: Event loop is closed

@@ -117,7 +117,8 @@ class XiaoEPlugin(BasePlatform, VideoCapable):
             })
 
             data = result.get("data", {})
-            api_items = data.get("items", [])
+            # API 返回字段名可能为 list 或 items
+            api_items = data.get("list", []) or data.get("items", [])
 
             for api_item in api_items:
                 resource_id = api_item.get("resource_id", "") or api_item.get("ID", "") or api_item.get("id", "")
