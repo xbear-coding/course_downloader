@@ -13,7 +13,7 @@ async def transcribe_audio(
     audio_path: Path,
     api_key: str,
     model: str = MODEL,
-    timeout: int = 60,
+    timeout: int = 300,
 ) -> str:
     """调用 SiliconFlow ASR API 转写音频
 
